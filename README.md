@@ -34,6 +34,7 @@ Interactive deck.gl maps (no API keys): [demand 2026](docs/maps/demand_2026.html
 | Implied rapid sessions per charger per day | ≈13 — consistent with TfL's observed 34 % occupancy of rapid units and 38-min sessions | cross-check, notebook 02 |
 | Rapid network today (366 sites, ports calibrated to DfT borough totals) | median 24 h utilisation 17 %; 174 sites with P(wait) > 0.5 at the peak hour | choice + queue model |
 | New hubs, £20M budget | SITING_PLACEHOLDER | MILP, notebook 04 |
+| Context features vs observed utilisation (204 chargers, 4 cities) | R² 0.70 with random 5-fold, **−0.25 leave-city-out**; rankings do not transfer either | LightGBM, notebook 05, observed target |
 
 ## How it works
 

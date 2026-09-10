@@ -338,7 +338,7 @@ s = prs.slides.add_slide(BLANK)
 bg(s, WHITE)
 n += 1
 title(s, "Supply follows devices; need follows cars without driveways", "Notebook 01 — all observed data")
-picture(s, "01_hex_supply_demand.png", 0.6, 1.8, h=5.2)
+picture(s, "01_hex_supply_demand.png", 0.6, 1.8, h=5.0)
 bullets(
     s,
     7.4,
@@ -531,7 +531,7 @@ title(
     "Do context features explain observed utilisation anywhere? A negative result, on purpose",
     f"Notebook 05 — {K['transfer_stations']} chargers with open session logs in four cities",
 )
-picture(s, "05_importance.png", 0.6, 1.8, h=4.9)
+picture(s, "05_importance.png", 0.6, 1.8, h=4.4)
 stat(s, 7.2, 1.9, 2.8, "0.70", "R² with random 5-fold CV\n(looks respectable)", color=TEAL)
 stat(s, 10.1, 1.9, 2.8, "−0.25", "R² with leave-city-out CV\n(the number that matters)", color=ORANGE)
 bullets(

@@ -58,7 +58,13 @@ The priors are deliberately wide. Calibration targets are aggregate observed qua
 3. **Transfer test**: models trained on cities with observed sessions, scored out-of-city.
 4. **Post-hoc plan**: the README states exactly which observed quantity (utilisation of chargers opened after the analysis date, from future DfT/Zapmap releases) would confirm or refute each recommendation. This is the "predict → deploy → measure" loop that makes the system a decision tool rather than a map.
 
-## 6. Known limitations
+## 6. What the London run showed (September 2026)
+
+* **Calibration.** Modelled public demand 285 GWh/yr (P10–P90 216–362) against ≈760 GWh/yr that the network *could* deliver at TfL-observed occupancy; the rapid-type component implies ≈13 sessions per rapid charger per day, matching TfL's 34 % occupancy with 38-minute sessions. The near-home component is well below the slow network's theoretical throughput, consistent with long-dwell, low-charging-time on-street sessions.
+* **Regime.** With P(wait) ≤ 15 % at the peak hour a 4 × 150 kW hub absorbs ≈33 sessions/day; unmet or queue-constrained rapid demand is ≈2,900 sessions/day. Siting is therefore capacity-bound: coverage grows almost linearly with budget until ≈90 hubs, and the location question reduces to "how many hubs per demand corridor". Greedy uncapacitated coverage overstates served demand several-fold.
+* **Transfer.** Context features explain observed utilisation only within a city and only weakly (leave-city-out R² < 0). Any site model must be validated out-of-city against usage.
+
+## 7. Known limitations
 
 * No open London-specific session data at charger level; observed behaviour comes from other UK cities and from fleet trials (Optimise Prime) and is used for parameters, not for training a London target.
 * Area-weighted interpolation assumes uniform density inside LSOAs.
