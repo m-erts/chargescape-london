@@ -22,11 +22,13 @@ data/raw/ukpn/ods/{dataset_id}.parquet           full ODS parquet exports (as se
 data/raw/ukpn/optimise_prime/**                  blob listing, guidance docs, downloaded CSVs
 data/raw/ukpn/low_carbon_london/**               zip + extracted trial files
 data/interim/ukpn/*.parquet                      tidy (Geo)Parquet, London flag/filter applied
+data/raw/ukpn/dfes/*.xlsx  -> data/interim/ukpn/dfes2026_*.parquet   DFES 2026 LSOA workbooks (DSO site)
+data/raw/ukpn/headroom/*.geojson -> data/interim/ukpn/headroom_*.parquet  primary substation headroom (GLA LAEP hub ArcGIS)
 data/interim/ukpn/optimise_prime/*.parquet       + _schema_report.json
 data/interim/ukpn/low_carbon_london/*.parquet    + _schema_report.json
 
 Run:  PYTHONPATH=src python -m chargescape.data.ukpn            (everything)
-      PYTHONPATH=src python -m chargescape.data.ukpn ods|op|lcl (one part)
+      PYTHONPATH=src python -m chargescape.data.ukpn ods|dfes|headroom|op|lcl (one part)
 Idempotent: every download is skipped when the file exists; interim files are rebuilt from raw.
 """
 
@@ -138,7 +140,7 @@ def _wkb_to_geoseries(col: pd.Series):
     import geopandas as gpd
 
     vals = col.where(col.notna(), None)
-    geoms = [shapely.from_wkb(v) if isinstance(v, (bytes, bytearray)) else None for v in vals]
+    geoms = [shapely.from_wkb(v) if isinstance(v, bytes | bytearray) else None for v in vals]
     return gpd.GeoSeries(geoms, index=col.index, crs="EPSG:4326")
 
 
@@ -190,7 +192,7 @@ def build_ods() -> dict[str, dict]:
                 geom = _wkb_to_geoseries(df.pop(c))
                 break
         for c in POINT_COLS:
-            if c in df.columns and df[c].map(lambda v: isinstance(v, (bytes, bytearray))).any():
+            if c in df.columns and df[c].map(lambda v: isinstance(v, bytes | bytearray)).any():
                 pts = _wkb_to_geoseries(df.pop(c))
                 df["lon"] = pts.x.astype("float64")
                 df["lat"] = pts.y.astype("float64")
@@ -362,7 +364,7 @@ def _parse_kafka_table(paths: list[Path]) -> pd.DataFrame:
                 "_key": r["key"],
                 "_file": p.name,
             }
-            rec.update({k: (json.dumps(v) if isinstance(v, (dict, list)) else v) for k, v in msg.items()})
+            rec.update({k: (json.dumps(v) if isinstance(v, dict | list) else v) for k, v in msg.items()})
             rows.append(rec)
     out = pd.DataFrame(rows)
     return out.sort_values("_ts").reset_index(drop=True) if len(out) else out
@@ -484,6 +486,17 @@ def build_optimise_prime() -> dict:
                 df[c] = pd.to_datetime(df[c], format="%Y/%m/%d %H:%M:%S.%f", errors="coerce")
             df = df.drop_duplicates(["charger_id", "transaction_id", "start_date_time"])
             df["total_kwh"] = pd.to_numeric(df["total_kwh"], errors="coerce")
+            # source quirks: a handful of 2014-dated rows, negative/absurd plug durations, >100 kWh
+            # "sessions" (Vivaro-e battery is 50/75 kWh). Keep raw values, expose a validity flag.
+            df["is_valid"] = (
+                (df.start_date_time >= "2020-06-01")
+                & df.total_kwh.between(0, 100)
+                & (df.plug_duration_minutes.isna() | df.plug_duration_minutes.between(0, 7 * 24 * 60))
+            )
+        elif key == "load_profile_data_table":
+            df["timestamp"] = pd.to_datetime(df["timestamp"], format="%d/%m/%Y %H:%M", errors="coerce")
+        elif key == "depot_load_data_table":
+            df["ev_load_timestamp"] = pd.to_datetime(df["ev_load_timestamp"], errors="coerce", utc=True)
         elif key == "bg-trips":
             for c in ("start_timestamp_utc", "end_timestamp_utc"):
                 df[c] = pd.to_datetime(df[c], format="%Y/%m/%d %H:%M:%S.%f", errors="coerce")
@@ -681,15 +694,231 @@ def build_low_carbon_london() -> dict:
     return report
 
 
+# ============================================================================ A3b. DFES 2026 LSOA workbooks
+# The portal copies of DFES need a login (data_visible=false).  UKPN's DSO site publishes the same
+# 2026 DFES as open Excel workbooks (CC BY 4.0 per the workbook cover sheet), one per technology,
+# at LSOA (2021) resolution for the whole UKPN area, pathways x 2024..2050.
+DFES_BASE = "https://d1lf1oz5vvdb9r.cloudfront.net/app/uploads/2026/03/"
+DFES_PAGE = "https://dso.ukpowernetworks.co.uk/distribution-future-energy-scenarios"
+DFES_WORKBOOKS: dict[str, list[str]] = {
+    "UKPN-electric-car-van-scenarios-LSOA-UPDATED.xlsx": ["cars", "vans"],
+    "UKPN-electric-taxi-phv-scenarios-LSOA-UPDATED.xlsx": ["PHV", "Taxi"],
+    "UKPN-electric-HGV-Bus-Coach-Minibus-scenarios-LSOA-UPDATED.xlsx": ["HGV", "Bus", "Coach", "Minibus"],
+    "UKPN-domestic-connection-count-scenarios-LSOA-UPDATED.xlsx": ["Domestic connection counts"],
+}
+# LSOA -> licence area / LAD / GSP lookups used by UKPN's own DFES map (GitHub, MIT-licensed repo)
+DFES_MAP_BASE = "https://raw.githubusercontent.com/UK-Power-Networks/DFES-visualisation/main/2026-DFES/data/"
+DFES_MAPPINGS = ("lsoa2dno.json", "lsoa2lad-compact.json", "gsp2lsoa.json")
+RAW_DFES = RAW_UKPN / "dfes"
+DFES_COLS = {
+    "LSOA21CD": "lsoa21cd",
+    "LSOA21NM": "lsoa21nm",
+    "MSOA21CD": "msoa21cd",
+    "LAD22CD": "lad22cd",
+    "LAD22NM": "lad22nm",
+    "Proportion served by EPN": "share_epn",
+    "Proportion served by LPN": "share_lpn",
+    "Proportion served by SPN": "share_spn",
+    "Majority Licence area": "licence_area",
+    "Scenario World": "pathway",
+    "Scenario": "scenario",
+    "Parameter": "parameter",
+    "Unit": "unit",
+}
+
+
+def build_dfes() -> dict:
+    """DSO-site DFES 2026 workbooks -> London LSOA table (wide by year) + UKPN LAD aggregate."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    for m in DFES_MAPPINGS:
+        _stream(DFES_MAP_BASE + m, RAW_DFES / m)
+    frames = []
+    for wb, sheets in DFES_WORKBOOKS.items():
+        p = _stream(DFES_BASE + wb, RAW_DFES / wb, timeout=900)
+        xl = pd.ExcelFile(p)
+        for sh in sheets:
+            df = xl.parse(sh)
+            df.columns = [str(c).strip() for c in df.columns]
+            years = [c for c in df.columns if c.isdigit()]
+            out = df[[c for c in DFES_COLS if c in df.columns]].rename(columns=DFES_COLS)
+            for c in DFES_COLS.values():
+                if c not in out.columns:
+                    out[c] = pd.NA
+            out["technology"] = sh.lower().replace(" ", "_")
+            out["workbook"] = wb
+            for y in years:
+                out[f"y{y}"] = pd.to_numeric(df[y], errors="coerce").astype("float32")
+            frames.append(out)
+            _log(f"DFES {wb[5:45]:40s} sheet={sh:28s} rows={len(df):>7,} years={years[0]}-{years[-1]}")
+    allx = pd.concat(frames, ignore_index=True)
+    allx["is_london"] = allx.lad22cd.astype("string").str.startswith("E09").fillna(False).astype(bool)
+    ycols = [c for c in allx.columns if c.startswith("y") and c[1:].isdigit()]
+    ldn = allx[allx.is_london].drop(columns=["is_london"]).reset_index(drop=True)
+    p_ldn = OUT / "dfes2026_lsoa_london_ev.parquet"
+    ldn.to_parquet(p_ldn, index=False)
+    keys = ["lad22cd", "lad22nm", "pathway", "scenario", "parameter", "unit", "technology"]
+    lad = allx.groupby(keys, dropna=False)[ycols].sum(min_count=1).reset_index()
+    lad["is_london"] = lad.lad22cd.astype("string").str.startswith("E09").fillna(False).astype(bool)
+    p_lad = OUT / "dfes2026_lad_ukpn_ev.parquet"
+    lad.to_parquet(p_lad, index=False)
+    # LSOA -> licence area lookup (all three UKPN areas) from UKPN's own mapping
+    l2d = json.loads((RAW_DFES / "lsoa2dno.json").read_text())
+    look = pd.DataFrame(
+        [(code, dno) for dno, codes in l2d.items() for code in codes], columns=["lsoa21cd", "licence_area"]
+    )
+    look.to_parquet(OUT / "dfes2026_lsoa_licence_area.parquet", index=False)
+    # headline check: London BEV cars, ElectricEngagement pathway
+    ee = ldn[(ldn.parameter == "BEV Cars") & (ldn.pathway == "ElectricEngagement")]
+    head = {y: float(ee[f"y{y}"].sum()) for y in (2024, 2026, 2030, 2035, 2040, 2050) if f"y{y}" in ee}
+    rep = {
+        "source_page": DFES_PAGE,
+        "workbooks": list(DFES_WORKBOOKS),
+        "licence": "UK Power Networks Distribution Future Energy Scenarios (C) 2024 by UK Power Networks, CC BY 4.0 (workbook cover sheet)",
+        "rows_all_ukpn": int(len(allx)),
+        "lsoas_all_ukpn": int(allx.lsoa21cd.nunique()),
+        "rows_london": int(len(ldn)),
+        "lsoas_london": int(ldn.lsoa21cd.nunique()),
+        "pathways": sorted(allx.pathway.dropna().unique().tolist()),
+        "scenarios": sorted(allx.scenario.dropna().unique().tolist()),
+        "parameters": sorted(allx.parameter.dropna().unique().tolist()),
+        "technologies": sorted(allx.technology.unique().tolist()),
+        "years": [int(ycols[0][1:]), int(ycols[-1][1:])],
+        "london_bev_cars_electric_engagement": head,
+        "outputs": {
+            str(p_ldn.relative_to(INTERIM)): round(p_ldn.stat().st_size / 1e6, 2),
+            str(p_lad.relative_to(INTERIM)): round(p_lad.stat().st_size / 1e6, 2),
+        },
+    }
+    (OUT / "_dfes_report.json").write_text(json.dumps(rep, indent=1))
+    _log(f"DFES London LSOAs={rep['lsoas_london']} rows={rep['rows_london']:,} | BEV cars (EE): {head}")
+    return rep
+
+
+# ============================================================================ A3c. Primary substation headroom (GLA LAEP hub)
+# The portal's substation headroom tables need a login, but the GLA republishes UKPN's primary
+# substation headroom for the London LAEP area as public ArcGIS feature services (CC BY 4.0, owner
+# GLAGIS, "using UK Power Networks data").  We page through the REST API anonymously.
+ARCGIS_ITEMS = "https://www.arcgis.com/sharing/rest/content/items/{item}?f=json"
+HEADROOM_LAYERS: dict[str, tuple[str, str]] = {
+    # short name: (ArcGIS item id, layer URL)
+    "headroom_primary_areas_summer2026": (
+        "8f79458dd7c04e09a534a900550f0de4",
+        "https://services.arcgis.com/drifeOPKLpgnJ8Qa/arcgis/rest/services/UKPN%20Primary%20Substation%20Distribution%20Areas%20(Summer%202026)/FeatureServer/0",
+    ),
+    "headroom_primary_areas_march2026": (
+        "d68db93824a44ef9801806ce5b5a682c",
+        "https://services.arcgis.com/drifeOPKLpgnJ8Qa/arcgis/rest/services/UKPN%20Primary%20Substations%20Demand%20Headroom/FeatureServer/0",
+    ),
+    "headroom_primary_areas_baseline_dec2024": (
+        "5ef3f8160bee40a5ac57d4c3fcee2bfb",
+        "https://services.arcgis.com/drifeOPKLpgnJ8Qa/arcgis/rest/services/Primary_Substation_Demand_Headroom/FeatureServer/0",
+    ),
+    "headroom_demand_forecast_nshr2023": (
+        "383199f6296742a19150dc637d6854cd",
+        "https://services.arcgis.com/drifeOPKLpgnJ8Qa/arcgis/rest/services/UKPN_Demand_Headroom_Forecast/FeatureServer/0",
+    ),
+    "headroom_generation_forecast_nshr2023": (
+        "316151597e034563a4bd7188aad1557d",
+        "https://services.arcgis.com/drifeOPKLpgnJ8Qa/arcgis/rest/services/UKPN_Generation_Headroom_Forecast/FeatureServer/0",
+    ),
+}
+RAW_HEADROOM = RAW_UKPN / "headroom"
+
+
+def _arcgis_geojson(layer_url: str, dest: Path, page: int = 1000) -> dict:
+    """Page through an ArcGIS FeatureServer layer and cache the merged GeoJSON (EPSG:4326)."""
+    if dest.exists() and dest.stat().st_size > 0:
+        return json.loads(dest.read_text())
+    feats, offset = [], 0
+    while True:
+        r = requests.get(
+            f"{layer_url}/query",
+            params={
+                "where": "1=1",
+                "outFields": "*",
+                "outSR": 4326,
+                "f": "geojson",
+                "resultOffset": offset,
+                "resultRecordCount": page,
+            },
+            headers={"User-Agent": UA},
+            timeout=180,
+        )
+        r.raise_for_status()
+        js = r.json()
+        if "error" in js:
+            raise RuntimeError(f"ArcGIS error for {layer_url}: {js['error']}")
+        feats += js.get("features", [])
+        if not js.get("properties", {}).get("exceededTransferLimit") and len(js.get("features", [])) < page:
+            break
+        offset += page
+    out = {"type": "FeatureCollection", "features": feats}
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(out))
+    return out
+
+
+def build_headroom() -> dict:
+    import geopandas as gpd
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    report = {}
+    for short, (item, url) in HEADROOM_LAYERS.items():
+        meta_p = RAW_HEADROOM / f"{short}.item.json"
+        if not meta_p.exists():
+            meta_p.parent.mkdir(parents=True, exist_ok=True)
+            meta_p.write_text(
+                json.dumps(
+                    requests.get(
+                        ARCGIS_ITEMS.format(item=item), headers={"User-Agent": UA}, timeout=60
+                    ).json(),
+                    indent=1,
+                )
+            )
+        item_meta = json.loads(meta_p.read_text())
+        gj = _arcgis_geojson(url, RAW_HEADROOM / f"{short}.geojson")
+        gdf = gpd.GeoDataFrame.from_features(gj["features"], crs="EPSG:4326")
+        gdf.columns = [c.lower() for c in gdf.columns]
+        dno_col = next((c for c in ("dno", "pn") if c in gdf.columns), None)
+        if dno_col:
+            gdf["is_lpn"] = gdf[dno_col].astype(str).str.upper().eq("LPN")
+        p = OUT / f"{short}.parquet"
+        gdf.to_parquet(p, index=False)
+        lic = re.sub(r"<[^>]+>", " ", item_meta.get("licenseInfo") or "").strip()
+        report[short] = {
+            "title": item_meta.get("title"),
+            "owner": item_meta.get("owner"),
+            "item_id": item,
+            "layer_url": url,
+            "licence": lic[:120],
+            "modified_ms": item_meta.get("modified"),
+            "rows": int(len(gdf)),
+            "lpn_rows": int(gdf["is_lpn"].sum()) if dno_col else None,
+            "geometry": str(gdf.geom_type.mode().iat[0]) if len(gdf) else None,
+            "columns": [c for c in gdf.columns if c != "geometry"],
+            "interim": str(p.relative_to(INTERIM)),
+            "size_mb": round(p.stat().st_size / 1e6, 2),
+        }
+        _log(
+            f"HEADROOM {short:42s} rows={len(gdf):>5} lpn={report[short]['lpn_rows']} geom={report[short]['geometry']} -> {p.name}"
+        )
+    (OUT / "_headroom_report.json").write_text(json.dumps(report, indent=1, default=str))
+    return report
+
+
 # ============================================================================ main
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    parts = set(argv) or {"ods", "op", "lcl"}
+    parts = set(argv) or {"ods", "dfes", "headroom", "op", "lcl"}
     OUT.mkdir(parents=True, exist_ok=True)
     cat = snapshot_catalog()
     _log(f"catalog snapshot: {len(cat)} datasets -> {RAW_CAT / 'catalog_full.json'}")
     if "ods" in parts:
         build_ods()
+    if "dfes" in parts:
+        build_dfes()
+    if "headroom" in parts:
+        build_headroom()
     if "op" in parts:
         build_optimise_prime()
     if "lcl" in parts:
