@@ -201,9 +201,8 @@ def main() -> None:
     hubs = gpd.GeoDataFrame(hubs, geometry="geometry", crs=4326)
     hubs["geometry"] = hubs.geometry.centroid
     hubs["sessions_day_assigned"] = hubs["sessions_day_assigned"].round(1)
-    hubs[["h3", "model", "borough", "sessions_day_assigned", "cost_gbp", "geometry"]].to_file(
-        DATA / f"hubs_budget_{int(b)}m.geojson", driver="GeoJSON"
-    )
+    hub_name = f"hubs_budget_{int(b)}m"
+    _write_layer(hubs[["h3", "model", "borough", "sessions_day_assigned", "cost_gbp", "geometry"]], hub_name)
 
     # ------------------------------------------------------------------ 1. demand
     br = _breaks(h["demand_p50"])
@@ -233,7 +232,7 @@ def main() -> None:
             js,
             _legend_html("MWh / year (P50 classes)", br, VIRIDIS),
             controls,
-        ),
+        , layers=("hex_r8",)),
         encoding="utf-8",
     )
 
@@ -263,7 +262,7 @@ def main() -> None:
             "Hexes: drive time on the OSM road network to the nearest rapid (≥50 kW) site. Circles: modelled site load from MNL allocation and Erlang-C queues; ports calibrated to DfT borough totals.",
             js,
             legend,
-        ),
+        , layers=("hex_r8", "rapid_sites_2026")),
         encoding="utf-8",
     )
 
@@ -298,7 +297,7 @@ def main() -> None:
             js,
             legend,
             controls,
-        ),
+        , layers=("hex_r8", hub_name)),
         encoding="utf-8",
     )
 
