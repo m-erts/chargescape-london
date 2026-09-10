@@ -26,9 +26,11 @@ const map = new maplibregl.Map({container:'map', style:'https://basemaps.cartocd
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 map.addControl(new maplibregl.ScaleControl({unit:'metric'}));
 function popup(html, lngLat){ new maplibregl.Popup({closeButton:false}).setLngLat(lngLat).setHTML(html).addTo(map); }
+function layer(name){ const d = (window.CS_DATA||{})[name]; if(!d){ const b=document.createElement('div'); b.className='panel'; b.style.top='auto'; b.style.bottom='60px'; b.innerHTML='<b>Data layer '+name+' did not load.</b> Serve the folder over http (python -m http.server) or open the GitHub Pages version.'; document.body.appendChild(b); } return d || {type:'FeatureCollection',features:[]}; }
+map.on('error', e => console.error('maplibre', e && e.error ? e.error.message : e));
 map.on('load', () => {
 
-  map.addSource('hex', {type:'geojson', data:'data/hex_r8.geojson'});
+  map.addSource('hex', {type:'geojson', data: layer('hex_r8')});
   const BR = [25.86, 52.42, 77.18, 111.86, 180.92], COL = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
   function stepExpr(prop){ const e=['step',['coalesce',['get',prop],0],COL[0]]; BR.forEach((b,i)=>e.push(b,COL[i+1])); return e; }
   map.addLayer({id:'hex-fill', type:'fill-extrusion', source:'hex', paint:{

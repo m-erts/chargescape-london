@@ -30,6 +30,20 @@ YLORRD = ["#ffffb2", "#fed976", "#feb24c", "#fd8d3c", "#f03b20", "#bd0026"]
 GREYS = ["#f7f7f7", "#d9d9d9", "#bdbdbd", "#969696", "#636363", "#252525"]
 
 
+def _write_layer(gdf: gpd.GeoDataFrame, name: str) -> None:
+    """Write GeoJSON (for reuse) and a JS wrapper (loads via <script>, so maps also work from file://)."""
+    path = DATA / f"{name}.geojson"
+    gdf.to_file(path, driver="GeoJSON")
+    js = (
+        "window.CS_DATA = window.CS_DATA || {}; window.CS_DATA["
+        + json.dumps(name)
+        + "] = "
+        + path.read_text(encoding="utf-8")
+        + ";"
+    )
+    (DATA / f"{name}.js").write_text(js, encoding="utf-8")
+
+
 def _breaks(values: pd.Series, k: int = 6) -> list[float]:
     v = values.dropna().astype(float)
     v = v[v > 0] if (v > 0).sum() > 50 else v
@@ -64,11 +78,18 @@ def _legend_html(title: str, breaks: list[float], colors: list[str], unit: str =
 
 
 def _page(
-    title: str, subtitle: str, body_js: str, legend: str, controls: str = "", extra_css: str = ""
+    title: str,
+    subtitle: str,
+    body_js: str,
+    legend: str,
+    controls: str = "",
+    extra_css: str = "",
+    layers: tuple[str, ...] = (),
 ) -> str:
+    scripts = "".join(f'<script src="data/{n}.js"></script>' for n in layers)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ChargeScape London · {title}</title>
-<link href="{MAPLIBRE_CSS}" rel="stylesheet"><script src="{MAPLIBRE_JS}"></script>
+<link href="{MAPLIBRE_CSS}" rel="stylesheet"><script src="{MAPLIBRE_JS}"></script>{scripts}
 <style>
 html,body{{margin:0;height:100%;font:14px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a2027}}
 #map{{position:absolute;inset:0}}
@@ -94,6 +115,8 @@ const map = new maplibregl.Map({{container:'map', style:'{STYLE}', center:{json.
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 map.addControl(new maplibregl.ScaleControl({{unit:'metric'}}));
 function popup(html, lngLat){{ new maplibregl.Popup({{closeButton:false}}).setLngLat(lngLat).setHTML(html).addTo(map); }}
+function layer(name){{ const d = (window.CS_DATA||{{}})[name]; if(!d){{ const b=document.createElement('div'); b.className='panel'; b.style.top='auto'; b.style.bottom='60px'; b.innerHTML='<b>Data layer '+name+' did not load.</b> Serve the folder over http (python -m http.server) or open the GitHub Pages version.'; document.body.appendChild(b); }} return d || {{type:'FeatureCollection',features:[]}}; }}
+map.on('error', e => console.error('maplibre', e && e.error ? e.error.message : e));
 map.on('load', () => {{
 {body_js}
 }});
@@ -146,7 +169,7 @@ def main() -> None:
     ):
         h[c] = h[c].astype(float).round(2)
     h["geometry"] = h.geometry.simplify(0.00005)
-    h.to_file(DATA / "hex_r8.geojson", driver="GeoJSON")
+    _write_layer(h, "hex_r8")
 
     sites = pd.read_parquet(PROCESSED / "rapid_sites_load_2026.small.parquet")
     s = gpd.GeoDataFrame(sites, geometry=gpd.points_from_xy(sites.lon, sites.lat), crs=4326)
@@ -170,7 +193,7 @@ def main() -> None:
         if c in s:
             s[c] = pd.to_numeric(s[c], errors="coerce").replace([np.inf, -np.inf], 120).round(2)
     s["operator"] = s["operator"].fillna("unknown").astype(str)
-    s.to_file(DATA / "rapid_sites_2026.geojson", driver="GeoJSON")
+    _write_layer(s, "rapid_sites_2026")
 
     sel = pd.read_parquet(PROCESSED / "siting_selected_2026.small.parquet")
     b = 20.0 if (sel.budget_m == 20.0).any() else sel.budget_m.max()
@@ -185,7 +208,7 @@ def main() -> None:
     # ------------------------------------------------------------------ 1. demand
     br = _breaks(h["demand_p50"])
     js = f"""
-  map.addSource('hex', {{type:'geojson', data:'data/hex_r8.geojson'}});
+  map.addSource('hex', {{type:'geojson', data: layer('hex_r8')}});
   const BR = {json.dumps(br)}, COL = {json.dumps(VIRIDIS)};
   function stepExpr(prop){{ const e=['step',['coalesce',['get',prop],0],COL[0]]; BR.forEach((b,i)=>e.push(b,COL[i+1])); return e; }}
   map.addLayer({{id:'hex-fill', type:'fill-extrusion', source:'hex', paint:{{
@@ -217,8 +240,8 @@ def main() -> None:
     # ------------------------------------------------------------------ 2. rapid network load
     br2 = [2, 4, 6, 8, 10]
     js = f"""
-  map.addSource('hex', {{type:'geojson', data:'data/hex_r8.geojson'}});
-  map.addSource('sites', {{type:'geojson', data:'data/rapid_sites_2026.geojson'}});
+  map.addSource('hex', {{type:'geojson', data: layer('hex_r8')}});
+  map.addSource('sites', {{type:'geojson', data: layer('rapid_sites_2026')}});
   map.addLayer({{id:'hex-tt', type:'fill', source:'hex', paint:{{'fill-color': {json.dumps(_step_expr("tt_rapid", br2, YLORRD))}, 'fill-opacity':0.55, 'fill-outline-color':'rgba(255,255,255,0.4)'}} }});
   map.addLayer({{id:'sites', type:'circle', source:'sites', paint:{{
      'circle-radius': ['interpolate',['linear'],['sqrt',['coalesce',['get','sessions_day'],1]], 1,3, 23,22],
@@ -247,8 +270,8 @@ def main() -> None:
     # ------------------------------------------------------------------ 3. siting
     br3 = _breaks(h["unmet"])
     js = f"""
-  map.addSource('hex', {{type:'geojson', data:'data/hex_r8.geojson'}});
-  map.addSource('hubs', {{type:'geojson', data:'data/hubs_budget_{int(b)}m.geojson'}});
+  map.addSource('hex', {{type:'geojson', data: layer('hex_r8')}});
+  map.addSource('hubs', {{type:'geojson', data: layer('hubs_budget_{int(b)}m')}});
   map.addLayer({{id:'hex-unmet', type:'fill', source:'hex', paint:{{'fill-color': {json.dumps(_step_expr("unmet", br3, GREYS))}, 'fill-opacity':0.6, 'fill-outline-color':'rgba(255,255,255,0.35)'}} }});
   map.addLayer({{id:'hubs', type:'circle', source:'hubs', paint:{{
      'circle-radius': 8, 'circle-color': ['match',['get','model'],'p50','#e4572e','robust','#1b4965','#888'],
