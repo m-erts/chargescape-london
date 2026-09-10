@@ -76,6 +76,7 @@ GEOG_LSOA = f"{NOMIS_LONDON}TYPE151"  # 2021 LSOAs within London (4,994)
 GEOG_MSOA = f"{NOMIS_LONDON}TYPE152"  # 2021 MSOAs within London (983)
 NOMIS_MAX_CELLS = 25_000  # hard cap per call without an API key
 N_LONDON_LSOA = 4994
+N_LONDON_MSOA = 1002  # MSOA 2021 (the 2011 geography had 983)
 
 # table -> (nomis dataset id, category dimension, categories to fetch or None for all)
 TABLES: dict[str, tuple[str, str, list[str] | None]] = {
@@ -371,8 +372,7 @@ def fetch_nomis_table(
 ) -> pd.DataFrame:
     """Fetch one Census 2021 table for all areas of `geography` as a tidy frame (one row per area x category).
 
-    n_geog: expected number of areas (asserted) or None to accept whatever nomis returns (nomis's best-fit
-    "within London" membership for MSOAs includes a few areas outside the ONS lookup; filter downstream).
+    n_geog: expected number of areas (asserted), or None to accept whatever nomis returns.
     """
     codelist = _nomis_codelist(ds, dim)
     labels = dict(codelist)
@@ -412,9 +412,9 @@ def fetch_census_tables() -> dict[str, pd.DataFrame]:
         out[table] = tidy
         log.info("%s: %d rows, %d categories", table, len(tidy), tidy["category_code"].nunique())
     # MSOA-level calibration set for the car-count estimate (TS045A is not published at LSOA level).
-    ts045a = fetch_nomis_table("TS045A", TS045A[0], TS045A[1], ["0"], GEOG_MSOA, n_geog=None)
+    ts045a = fetch_nomis_table("TS045A", TS045A[0], TS045A[1], ["0"], GEOG_MSOA, n_geog=N_LONDON_MSOA)
     ts045_msoa = fetch_nomis_table(
-        "TS045", TABLES["TS045"][0], TABLES["TS045"][1], None, GEOG_MSOA, n_geog=None
+        "TS045", TABLES["TS045"][0], TABLES["TS045"][1], None, GEOG_MSOA, n_geog=N_LONDON_MSOA
     )
     ts045a.to_parquet(INTERIM_DIR / "ts045a_msoa21_london.parquet", index=False)
     ts045_msoa.to_parquet(INTERIM_DIR / "ts045_msoa21_london.parquet", index=False)
@@ -493,6 +493,25 @@ def _share(num: pd.Series, den: pd.Series) -> pd.Series:
     return (num / den.where(den > 0)).astype("float64")
 
 
+def cars_3plus_multiplier(msoas: set[str] | None = None) -> float:
+    """Mean number of cars in '3 or more cars' households, London-wide, from TS045A vs TS045 at MSOA level.
+
+    TS045A (total cars or vans in the area) is not published at LSOA level, so the LSOA car stock is estimated
+    as 1*hh_1_car + 2*hh_2_cars + k3*hh_3plus_cars with k3 chosen so that the estimate reproduces the published
+    London MSOA total exactly. Falls back to 3.0 if the MSOA files are missing.
+    """
+    try:
+        a = pd.read_parquet(INTERIM_DIR / "ts045a_msoa21_london.parquet")
+        m = _wide(pd.read_parquet(INTERIM_DIR / "ts045_msoa21_london.parquet"), "c")
+    except FileNotFoundError:
+        log.warning("TS045A MSOA calibration files missing; using 3.0 cars for '3 or more' households")
+        return 3.0
+    if msoas is not None:
+        m = m[m.index.isin(msoas)]
+    tot = a.set_index("geography_code")["value"].astype(float).reindex(m.index)
+    return float((tot - m["c_2"] - 2 * m["c_3"]).sum() / m["c_4"].sum())
+
+
 def build_lsoa_features(save: bool = True) -> pd.DataFrame:
     """Join geographies, census tables and IMD into one wide LSOA21 table with clean feature names."""
     p = INTERIM_DIR
@@ -525,24 +544,13 @@ def build_lsoa_features(save: bool = True) -> pd.DataFrame:
     f["hh_1_car"] = w["c_2"]
     f["hh_2_cars"] = w["c_3"]
     f["hh_3plus_cars"] = w["c_4"]
-    # calibrate mean cars in "3 or more" households against TS045A totals at MSOA level (London-wide factor)
-    k3 = 3.0
-    try:
-        msoas = set(lookup["msoa21cd"])  # nomis's "within London" MSOA list is wider than the ONS lookup
-        a = pd.read_parquet(p / "ts045a_msoa21_london.parquet")
-        m = _wide(pd.read_parquet(p / "ts045_msoa21_london.parquet"), "c")
-        m = m[m.index.isin(msoas)]
-        tot = a.set_index("geography_code")["value"].astype(float).reindex(m.index)
-        k3 = float((tot - m["c_2"] - 2 * m["c_3"]).sum() / m["c_4"].sum())
-    except FileNotFoundError:
-        log.warning("TS045A MSOA calibration file missing; using 3.0 cars for '3 or more' households")
+    k3 = cars_3plus_multiplier(set(lookup["msoa21cd"]))
+    log.info("cars_est: mean cars in '3 or more' households calibrated on MSOA TS045A = %.4f", k3)
     f["cars_est"] = f["hh_1_car"] + 2 * f["hh_2_cars"] + k3 * f["hh_3plus_cars"]
     f["cars_per_household"] = _share(f["cars_est"], f["households"])
     f["share_no_car"] = _share(f["hh_no_car"], f["households"])
     f["share_1_car"] = _share(f["hh_1_car"], f["households"])
     f["share_2plus_cars"] = _share(f["hh_2_cars"] + f["hh_3plus_cars"], f["households"])
-    f.attrs["cars_3plus_multiplier"] = k3
-
     # TS044 accommodation type (households)
     w = _wide(t["TS044"], "a")
     f["n_detached"] = w["a_1"]
@@ -617,6 +625,7 @@ def build_lsoa_features(save: bool = True) -> pd.DataFrame:
     f = f.join(imd[keep], how="left")
 
     f = f.reset_index()
+    f.attrs["cars_3plus_multiplier"] = k3  # informational only (attrs are not persisted to parquet)
     if save:
         f.to_parquet(p / "lsoa21_london_features.parquet", index=False)
     return f
