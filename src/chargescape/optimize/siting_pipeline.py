@@ -100,7 +100,9 @@ def run(
         .reindex(feats["h3"])
         .reset_index()
     )
-    scen = {q: unmet_demand(service, dem, q) for q in ("p10", "p50", "p90")}
+    scen = {
+        q: unmet_demand(service, dem, q) for q in ("p50", "p10", "p90")
+    }  # p50 first: it is the base scenario for reported coverage
     cand = candidates(feats, unmet=scen["p50"], max_candidates=max_candidates)
     tt, method = travel_time_minutes(feats, cand, name=f"hex_r{res}_to_cand_{scenario}_{max_candidates}")
     tt = np.where(np.isfinite(tt), tt, 1e6)
@@ -122,7 +124,7 @@ def run(
     sel_frames = []
     for b in budgets_m:
         budget = b * 1e6
-        r = capacitated_mclp(scen["p50"], tt, RADIUS_MIN, cost, capacity, budget, time_limit=90, mip_gap=0.01)
+        r = capacitated_mclp(scen["p50"], tt, RADIUS_MIN, cost, capacity, budget, time_limit=60, mip_gap=0.01)
         p_equiv = int(budget // HUB_COST_GBP)
         g = greedy_mclp(scen["p50"], tt, RADIUS_MIN, p_equiv)
         greedy_cov = coverage_of(scen["p50"], tt, RADIUS_MIN, g)
@@ -148,7 +150,15 @@ def run(
             )
         if robust:
             rr = robust_capacitated_mclp(
-                scen, {"p10": 0.25, "p50": 0.5, "p90": 0.25}, tt, RADIUS_MIN, cost, capacity, budget
+                scen,
+                {"p10": 0.25, "p50": 0.5, "p90": 0.25},
+                tt,
+                RADIUS_MIN,
+                cost,
+                capacity,
+                budget,
+                time_limit=120,
+                mip_gap=0.01,
             )
             row.update(
                 {

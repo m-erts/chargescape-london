@@ -79,6 +79,13 @@ def capacitated_mclp(
         lb.append(-np.inf)
         ub.append(0.0)
         r += 1
+    # linking (strengthens the LP relaxation): y_ij - x_j <= 0
+    rows += np.repeat(np.arange(r, r + k), 2).tolist()
+    cols += np.column_stack([m + np.arange(k), jj]).ravel().tolist()
+    vals += [1.0, -1.0] * k
+    lb += [-np.inf] * k
+    ub += [0.0] * k
+    r += k
     # budget
     rows += [r] * m
     cols += list(range(m))
@@ -164,6 +171,12 @@ def robust_capacitated_mclp(
             lb.append(-np.inf)
             ub.append(0.0)
             r += 1
+        rows += np.repeat(np.arange(r, r + k), 2).tolist()
+        cols += np.column_stack([off + np.arange(k), jj]).ravel().tolist()
+        vals += [1.0, -1.0] * k
+        lb += [-np.inf] * k
+        ub += [0.0] * k
+        r += k
         if worst_case:  # z - Σ d_i y_ij <= 0
             rows += [r] * (k + 1)
             cols += (off + np.arange(k)).tolist() + [nv - 1]
