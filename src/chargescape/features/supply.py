@@ -21,8 +21,22 @@ from chargescape.features.grid import BNG, WGS84, count_points_by_cell
 RAPID_KW = 50.0
 
 
-def harmonise_chargers(osm: gpd.GeoDataFrame, ncr: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """One table of charging sites with columns: site_id, source, year, max_kw, n_ports, is_rapid, geometry (WGS84)."""
+def harmonise_chargers(
+    osm: gpd.GeoDataFrame, ncr: gpd.GeoDataFrame, ocm: pd.DataFrame | None = None
+) -> gpd.GeoDataFrame:
+    """One table of charging sites: site_id, source, year, max_kw, n_ports, operator, is_rapid, geometry (WGS84).
+    Sources: Open Charge Map 2026 (if downloaded with an API key), OpenStreetMap 2026, NCR May-2021 snapshot."""
+    frames = []
+    if ocm is not None and len(ocm):
+        o = ocm.copy()
+        o = o[~o["status"].astype(str).str.contains("Removed|Not Operational|Planned", case=False, na=False)]
+        o["site_id"] = "ocm_" + o["ocm_id"].astype(str)
+        o["source"] = "ocm"
+        o["year"] = pd.to_datetime(o["date_last_verified"], errors="coerce").dt.year.fillna(2026).astype(int)
+        o["max_kw"] = pd.to_numeric(o["max_power_kw"], errors="coerce")
+        o["n_ports"] = pd.to_numeric(o["n_points"], errors="coerce").fillna(2).clip(lower=1)
+        o["geometry"] = gpd.points_from_xy(o["lon"], o["lat"])
+        frames.append(gpd.GeoDataFrame(o, geometry="geometry", crs=WGS84))
     o = osm.to_crs(WGS84)[
         ["osm_id", "max_power_kw", "n_sockets", "capacity_int", "operator", "geometry"]
     ].copy()
@@ -35,6 +49,7 @@ def harmonise_chargers(osm: gpd.GeoDataFrame, ncr: gpd.GeoDataFrame) -> gpd.GeoD
         .fillna(1)
         .clip(lower=1)
     )
+    frames.append(o)
     n = ncr.to_crs(WGS84)[
         ["chargeDeviceID", "max_rated_kw", "n_connectors", "deviceControllerName", "geometry"]
     ].copy()
@@ -43,24 +58,33 @@ def harmonise_chargers(osm: gpd.GeoDataFrame, ncr: gpd.GeoDataFrame) -> gpd.GeoD
     n["max_kw"] = pd.to_numeric(n["max_rated_kw"], errors="coerce")
     n["n_ports"] = pd.to_numeric(n["n_connectors"], errors="coerce").fillna(1).clip(lower=1)
     n = n.rename(columns={"deviceControllerName": "operator"})
+    frames.append(n)
     cols = ["site_id", "source", "year", "max_kw", "n_ports", "operator", "geometry"]
-    out = pd.concat([o[cols], n[cols]], ignore_index=True)
-    out = gpd.GeoDataFrame(out, geometry="geometry", crs=WGS84)
+    out = gpd.GeoDataFrame(
+        pd.concat([f[cols] for f in frames], ignore_index=True), geometry="geometry", crs=WGS84
+    )
     out["is_rapid"] = out["max_kw"].fillna(0) >= RAPID_KW
     return out
 
 
-def dedupe_within(sites: gpd.GeoDataFrame, radius_m: float = 50.0, prefer: str = "osm") -> gpd.GeoDataFrame:
-    """Drop NCR devices that have an OSM feature within radius_m (same physical site)."""
+def dedupe_within(
+    sites: gpd.GeoDataFrame, radius_m: float = 50.0, priority: tuple[str, ...] = ("ocm", "osm", "ncr")
+) -> gpd.GeoDataFrame:
+    """Collapse sources onto physical sites: a lower-priority record within radius_m of a higher-priority
+    one is dropped (OCM has ports and power for most sites, OSM is current, NCR is complete but stale)."""
     s = sites.to_crs(BNG)
-    a = s[s.source == prefer]
-    b = s[s.source != prefer]
-    if a.empty or b.empty:
-        return sites
-    tree = cKDTree(np.c_[a.geometry.x, a.geometry.y])
-    d, _ = tree.query(np.c_[b.geometry.x, b.geometry.y], k=1)
-    keep = b.index[d > radius_m]
-    return sites.loc[a.index.union(keep)].copy()
+    kept = s[s.source == priority[0]]
+    for src in priority[1:]:
+        b = s[s.source == src]
+        if b.empty:
+            continue
+        if kept.empty:
+            kept = b
+            continue
+        tree = cKDTree(np.c_[kept.geometry.x, kept.geometry.y])
+        d, _ = tree.query(np.c_[b.geometry.x, b.geometry.y], k=1)
+        kept = pd.concat([kept, b[d > radius_m]])
+    return sites.loc[kept.index].copy()
 
 
 def supply_features(grid: gpd.GeoDataFrame, sites: gpd.GeoDataFrame) -> pd.DataFrame:

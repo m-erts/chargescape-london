@@ -32,7 +32,8 @@ models:
 	$(PY) -m chargescape.models.run_all
 
 maps:
-	$(PY) -m chargescape.viz.export_maps
+	$(PY) -m chargescape.viz.export_maplibre
+	$(PY) scripts/make_slides.py
 
 test:
 	$(PY) -m pytest -q

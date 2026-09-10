@@ -15,6 +15,9 @@ raw_path: data/raw/chargepoints/ocm_api_status.json (would be data/raw/chargepoi
 ---
 
 ## What it is
+
+**Update 2026-09-10 (evening):** downloaded with a free API key supplied via `OCM_API_KEY` (never stored in the repo): 12,565 POIs in the London bounding box in 5 bbox tiles; operators, usage and status resolved through `/v3/referencedata/`; 611 POIs with ≥50 kW (1,235 known points). Used as the primary supply source, de-duplicated against OSM and the NCR 2021 snapshot within 50 m.
+
 Open Charge Map is the global crowd-sourced registry of EV charging locations. The intended pull was the
 Greater London bbox (51.28,-0.51)–(51.70,0.33), `countrycode=GB`, compact JSON, tiled recursively because the v3
 API has no offset paging (a tile that returns `maxresults` rows is split into four).

@@ -310,7 +310,7 @@ steps = [
         "MNL station choice on drive times; Erlang-C per site; incremental vs cannibalised demand",
     ),
     ("Siting", "capacitated MCLP + robust two-stage MILP (HiGHS); budget, capacity, grid filter"),
-    ("Delivery", "deck.gl maps, notebooks, model card, post-hoc validation plan"),
+    ("Delivery", "MapLibre maps, HTML + PPTX decks, notebooks, model card, post-hoc validation plan"),
 ]
 for i, (h, b) in enumerate(steps):
     x = 0.6 + i * 2.05
@@ -618,9 +618,9 @@ text(
     11.5,
     3.6,
     [
-        "Repository: github.com/OWNER/chargescape-london — code, 16 tests, data catalog with 23 source cards, methodology and model card",
+        "Repository: github.com/m-erts/chargescape-london — code, 16 tests, data catalog with 23 source cards, methodology and model card",
         "Notebooks 01–05: supply audit · demand surface · choice & queues · siting · utilisation transfer",
-        "Interactive maps (deck.gl, no keys): demand 2026 · rapid network load & queues · selected hubs under a £20M budget",
+        "Interactive maps (MapLibre GL, no keys): demand 2026 · rapid network load & queues · selected hubs under a £20M budget",
         "Reproduce: pip install -e . → make data → make features → make models → make maps",
     ],
     size=16,

@@ -99,7 +99,12 @@ def demand_side(grid: gpd.GeoDataFrame) -> pd.DataFrame:
 def supply_side(grid: gpd.GeoDataFrame) -> pd.DataFrame:
     osm = read_gdf(INTERIM / "chargepoints" / "osm_charging_stations.parquet")
     ncr = read_gdf(INTERIM / "chargepoints" / "ncr_archive_london_2021.parquet")
-    sites = dedupe_within(harmonise_chargers(osm, ncr))
+    ocm_path = INTERIM / "chargepoints" / "ocm_london.parquet"
+    ocm = pd.read_parquet(ocm_path) if ocm_path.exists() else None
+    sites = dedupe_within(harmonise_chargers(osm, ncr, ocm))
+    print(
+        f"  charging sites after de-duplication: {len(sites)} ({sites.source.value_counts().to_dict()}); rapid {int(sites.is_rapid.sum())}"
+    )
     write_gdf(sites, PROCESSED / "charging_sites.parquet")
     return supply_features(grid, sites)
 
