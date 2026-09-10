@@ -122,7 +122,7 @@ def run(
     sel_frames = []
     for b in budgets_m:
         budget = b * 1e6
-        r = capacitated_mclp(scen["p50"], tt, RADIUS_MIN, cost, capacity, budget)
+        r = capacitated_mclp(scen["p50"], tt, RADIUS_MIN, cost, capacity, budget, time_limit=90, mip_gap=0.01)
         p_equiv = int(budget // HUB_COST_GBP)
         g = greedy_mclp(scen["p50"], tt, RADIUS_MIN, p_equiv)
         greedy_cov = coverage_of(scen["p50"], tt, RADIUS_MIN, g)

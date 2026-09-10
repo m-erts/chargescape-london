@@ -1,0 +1,54 @@
+{
+  "n_hexes": 2374,
+  "population_in_hexes": 8676381,
+  "piv_private": 174921,
+  "piv_company": 120664,
+  "dft_date": "2026-07-01",
+  "chargers_total": 31371,
+  "chargers_rapid": 2533,
+  "rapid_share": 0.081,
+  "demand_gwh": {
+    "2026": {
+      "total_p10": 216.0,
+      "total_p50": 285.0,
+      "total_p90": 361.0,
+      "res_p50": 78.0,
+      "dest_p50": 55.0,
+      "phv_p50": 152.0
+    },
+    "2030_high": {
+      "total_p10": 1021.0,
+      "total_p50": 1407.0,
+      "total_p90": 1843.0,
+      "res_p50": 550.0,
+      "dest_p50": 384.0,
+      "phv_p50": 472.0
+    },
+    "2030_low": {
+      "total_p10": 797.0,
+      "total_p50": 1104.0,
+      "total_p90": 1449.0,
+      "res_p50": 372.0,
+      "dest_p50": 260.0,
+      "phv_p50": 472.0
+    },
+    "2030_mid": {
+      "total_p10": 979.0,
+      "total_p50": 1350.0,
+      "total_p90": 1769.0,
+      "res_p50": 517.0,
+      "dest_p50": 361.0,
+      "phv_p50": 472.0
+    }
+  },
+  "rapid_sites": 366,
+  "rapid_ports_calibrated": 2637,
+  "rapid_ports_known": 1126,
+  "sites_pwait_gt_50": 174,
+  "util24_median": 0.172,
+  "rapid_sessions_day_total": 33130.0,
+  "rapid_sessions_per_charger_day": 13.1,
+  "median_tt_nearest_rapid_min": 2.9,
+  "unserved_sessions_day": 158.0,
+  "transfer_stations": 204
+}
