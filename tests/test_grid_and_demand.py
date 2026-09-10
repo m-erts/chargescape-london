@@ -19,7 +19,9 @@ def test_grid_covers_box_and_interpolation_conserves_mass():
     out = areal_interpolate(src, grid, extensive=["pop"], intensive=["rate"])
     # centroid-selected hexes may extend slightly beyond the box, so mass is conserved up to edge effects
     assert 0.9 * 4000 <= out["pop"].sum() <= 1.05 * 4000
-    assert out["rate"].dropna().between(0.2 - 1e-9, 0.6 + 1e-9).all()  # edge hexes outside sources are NaN by design
+    assert (
+        out["rate"].dropna().between(0.2 - 1e-9, 0.6 + 1e-9).all()
+    )  # edge hexes outside sources are NaN by design
     nb = neighbours(grid["h3"])
     assert all(len(v) <= 6 for v in nb.values())
 
