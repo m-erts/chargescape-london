@@ -19,20 +19,39 @@ from chargescape.features.travel_time import travel_time_minutes
 from chargescape.models.choice import ChoiceParams, allocate_demand, choice_probabilities, utilities
 from chargescape.models.queueing import site_metrics
 from chargescape.utils.io import read_gdf, write_df
-from chargescape.utils.paths import PROCESSED
+from chargescape.utils.paths import INTERIM, PROCESSED
 
 KWH_PER_RAPID_SESSION = 17.0  # Dundee rapid median 16.2 kWh; UK rapid sessions cluster 15–20 kWh
 SERVICE_MIN = 38.0  # Dundee rapid median dwell 35–39 min
 
 
-def rapid_sites() -> gpd.GeoDataFrame:
+def rapid_sites(calibrate: bool = True) -> gpd.GeoDataFrame:
+    """Rapid (>=50 kW) sites from OSM 2026 ∪ NCR 2021. Because OSM sees only a fraction of London's
+    rapid devices, `calibrate=True` scales the ports of known sites within each borough so that the
+    borough total matches the official DfT count of 50 kW+ chargers (1 July 2026). The scale factor is
+    stored per site (`port_scale`) so the assumption is visible downstream."""
     s = read_gdf(PROCESSED / "charging_sites.parquet").to_crs(4326)
     s = s[s.is_rapid].copy().reset_index(drop=True)
     s["lat"], s["lon"] = s.geometry.y, s.geometry.x
-    s["ports"] = s["n_ports"].fillna(2).clip(lower=1).astype(int)
+    s["ports_known"] = s["n_ports"].fillna(2).clip(lower=1)
     s["power_kw"] = s["max_kw"].fillna(50.0)
     s["price"] = 79.0  # p/kWh, typical London rapid tariff 2026 (bp pulse 79–93p, IONITY 83p)
-    return s
+    lad = read_gdf(INTERIM / "census" / "lad24_london.parquet").to_crs(4326)
+    name_col = [c for c in lad.columns if c.lower().startswith("lad") and c.lower().endswith("nm")][0]
+    s = gpd.sjoin(s, lad[[name_col, "geometry"]], how="left", predicate="within").rename(
+        columns={name_col: "borough"}
+    )
+    s = s[~s.index.duplicated()].copy()
+    s["port_scale"] = 1.0
+    if calibrate:
+        dft = pd.read_parquet(INTERIM / "chargepoints" / "dft_evci_london_la.parquet")
+        dft = dft[(dft.measure == "50kW+ EV chargers") & (dft.geography == "local_authority")]
+        dft = dft[dft.date == dft.date.max()].set_index("area_name")["value"]
+        known = s.groupby("borough")["ports_known"].sum()
+        scale = (dft.reindex(known.index) / known).clip(lower=1.0, upper=15.0).fillna(1.0)
+        s["port_scale"] = s["borough"].map(scale).fillna(1.0)
+    s["ports"] = np.maximum(1, np.rint(s["ports_known"] * s["port_scale"])).astype(int)
+    return s.reset_index(drop=True)
 
 
 def run(
