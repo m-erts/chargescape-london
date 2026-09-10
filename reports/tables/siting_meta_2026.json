@@ -1,0 +1,8 @@
+{
+  "method": "osm_igraph",
+  "scenario": "2026",
+  "n_candidates": 500,
+  "hub_capacity_sessions_day": 33.31170119357964,
+  "radius_min": 8.0,
+  "hub_cost_gbp": 390000
+}

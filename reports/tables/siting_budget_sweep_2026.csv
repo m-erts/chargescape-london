@@ -1,0 +1,5 @@
+budget_m,n_hubs,covered_p50,total_unmet_p50,coverage_share,greedy_uncapacitated_covered,status,robust_n_hubs,robust_overlap_with_p50,robust_status
+5.0,12,399.74041432295564,2936.2988060486387,0.13613751212904798,2114.9797229615033,Optimal,12,3,Optimal
+10.0,25,832.792529839491,2936.2988060486387,0.28361981693551663,2538.8823621539887,Optimal,25,3,Time limit reached. (HiGHS Status 13: Time limit reached)
+20.0,51,1698.8967608725616,2936.2988060486387,0.578584426548454,2603.7843055147678,Optimal,51,11,Time limit reached. (HiGHS Status 13: Time limit reached)
+40.0,101,2570.078116009109,2936.2988060486387,0.8752781258892549,2603.7843055147678,Optimal,96,35,Time limit reached. (HiGHS Status 13: Time limit reached)

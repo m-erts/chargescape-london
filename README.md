@@ -33,7 +33,7 @@ Interactive deck.gl maps (no API keys): [demand 2026](docs/maps/demand_2026.html
 | Demand 2030 (DFES pathways) | 1,100 / 1,350 / 1,410 GWh/yr (low / mid / high) | model + UKPN DFES 2026 |
 | Implied rapid sessions per charger per day | ≈13 — consistent with TfL's observed 34 % occupancy of rapid units and 38-min sessions | cross-check, notebook 02 |
 | Rapid network today (366 sites, ports calibrated to DfT borough totals) | median 24 h utilisation 17 %; 174 sites with P(wait) > 0.5 at the peak hour | choice + queue model |
-| New hubs, £20M budget | SITING_PLACEHOLDER | MILP, notebook 04 |
+| New hubs, £20M budget | 51 hubs serve 58% of unmet/queue-constrained rapid demand (1,699 of 2,936 sessions/day); £40M → 101 hubs, 88%. Regime is capacity-bound (≈33 sessions/day per 4×150 kW hub at P(wait) ≤ 15 %); greedy uncapacitated coverage overstates by ~1.5–5× | MILP, notebook 04 |
 | Context features vs observed utilisation (204 chargers, 4 cities) | R² 0.70 with random 5-fold, **−0.25 leave-city-out**; rankings do not transfer either | LightGBM, notebook 05, observed target |
 
 ## How it works

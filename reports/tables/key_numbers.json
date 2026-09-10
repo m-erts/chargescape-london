@@ -50,5 +50,63 @@
   "rapid_sessions_per_charger_day": 13.1,
   "median_tt_nearest_rapid_min": 2.9,
   "unserved_sessions_day": 158.0,
+  "siting": [
+    {
+      "budget_m": 5.0,
+      "n_hubs": 12,
+      "covered_p50": 399.7404143229557,
+      "total_unmet_p50": 2936.2988060486387,
+      "coverage_share": 0.1361375121290479,
+      "greedy_uncapacitated_covered": 2114.9797229615033,
+      "status": "Optimal",
+      "robust_n_hubs": 12,
+      "robust_overlap_with_p50": 3,
+      "robust_status": "Optimal"
+    },
+    {
+      "budget_m": 10.0,
+      "n_hubs": 25,
+      "covered_p50": 832.792529839491,
+      "total_unmet_p50": 2936.2988060486387,
+      "coverage_share": 0.2836198169355166,
+      "greedy_uncapacitated_covered": 2538.8823621539887,
+      "status": "Optimal",
+      "robust_n_hubs": 25,
+      "robust_overlap_with_p50": 3,
+      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+    },
+    {
+      "budget_m": 20.0,
+      "n_hubs": 51,
+      "covered_p50": 1698.8967608725616,
+      "total_unmet_p50": 2936.2988060486387,
+      "coverage_share": 0.578584426548454,
+      "greedy_uncapacitated_covered": 2603.784305514768,
+      "status": "Optimal",
+      "robust_n_hubs": 51,
+      "robust_overlap_with_p50": 11,
+      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+    },
+    {
+      "budget_m": 40.0,
+      "n_hubs": 101,
+      "covered_p50": 2570.078116009109,
+      "total_unmet_p50": 2936.2988060486387,
+      "coverage_share": 0.8752781258892549,
+      "greedy_uncapacitated_covered": 2603.784305514768,
+      "status": "Optimal",
+      "robust_n_hubs": 96,
+      "robust_overlap_with_p50": 35,
+      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+    }
+  ],
+  "siting_meta": {
+    "method": "osm_igraph",
+    "scenario": "2026",
+    "n_candidates": 500,
+    "hub_capacity_sessions_day": 33.31170119357964,
+    "radius_min": 8.0,
+    "hub_cost_gbp": 390000
+  },
   "transfer_stations": 204
 }
