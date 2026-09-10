@@ -117,11 +117,11 @@ tot.round(1)"""),
     ("code", """d26 = dem[dem.scenario == "2026"].set_index("h3")
 g = feats.set_index("h3").join(d26, how="left").reset_index()
 g["total_mwh_p50"] = g["total_kwh_p50"] / 1e3
-g["uncert_ratio"] = g["total_kwh_p90"] / g["total_kwh_p10"].replace(0, np.nan)
+g["uncert_band_mwh"] = (g["total_kwh_p90"] - g["total_kwh_p10"]) / 1e3
 g["phv_share"] = g["phv_kwh_p50"] / g["total_kwh_p50"].replace(0, np.nan)
 fig, axes = plt.subplots(1, 3, figsize=(20, 6))
 hex_map(g, "total_mwh_p50", "Public charging demand 2026, P50 (MWh/yr per hex)", cmap="viridis", scheme="quantiles", k=7, ax=axes[0], legend_label="MWh/yr")
-hex_map(g, "uncert_ratio", "Uncertainty: P90 / P10 ratio", cmap="cividis", vmin=1.5, vmax=4, ax=axes[1], legend_label="ratio")
+hex_map(g, "uncert_band_mwh", "Uncertainty band: P90 − P10 (MWh/yr)", cmap="cividis", scheme="quantiles", k=7, ax=axes[1], legend_label="MWh/yr")
 hex_map(g, "phv_share", "Share of demand from taxi & private hire", cmap="plasma", vmin=0, vmax=1, ax=axes[2], legend_label="share")
 plt.tight_layout(); save(fig, "02_demand_p50_uncertainty.png"); plt.show()"""),
     ("md", """## 2. Sanity checks against observed aggregates
@@ -144,7 +144,9 @@ m = tot.loc["2026"]
 print(f"\\nModel 2026: near-home {m['res_kwh_p50']:.0f} GWh (P10–P90 {m['res_kwh_p10']:.0f}–{m['res_kwh_p90']:.0f}); rapid-type (destination+PHV) {m['dest_kwh_p50']+m['phv_kwh_p50']:.0f} GWh; total {m['total_kwh_p50']:.0f} GWh (P10–P90 {m['total_kwh_p10']:.0f}–{m['total_kwh_p90']:.0f})")
 rapid_sessions_day = (m['dest_kwh_p50'] + m['phv_kwh_p50']) * 1e6 / 17 / 365
 print(f"→ implied rapid sessions per charger per day: {rapid_sessions_day / n_rapid:.1f}  (TfL occupancy 34% with 38-min sessions ⇒ ~{0.34*24*60/38:.0f}/day; Dundee observed ≈3/day)")"""),
-    ("md", """**Reading.** The model's rapid-type demand lands at the order of magnitude implied by TfL's observed occupancy of London's rapid network, while the near-home component sits below the energy that 28k slow chargers *could* be delivering — consistent with the known low charging-time share of long-dwell on-street sessions. The wide P10–P90 band is the honest statement: the biggest levers are the public-charging share of drivers without a driveway and the size of the electric PHV fleet."""),
+    ("md", """**A note on the uncertainty map.** The P90−P10 band scales with the level of demand because the priors are global; the *relative* band is nearly constant (P90/P10 ≈ 1.7) and only shifts with the local mix of near-home, destination and PHV demand. Spatially varying uncertainty would need local calibration data — which is precisely what the post-hoc validation plan collects.
+
+**Reading.** The model's rapid-type demand lands at the order of magnitude implied by TfL's observed occupancy of London's rapid network, while the near-home component sits below the energy that 28k slow chargers *could* be delivering — consistent with the known low charging-time share of long-dwell on-street sessions. The wide P10–P90 band is the honest statement: the biggest levers are the public-charging share of drivers without a driveway and the size of the electric PHV fleet."""),
     ("md", "## 3. 2030 scenarios (UKPN DFES 2026 pathways) — where growth concentrates"),
     ("code", """d30 = dem[dem.scenario == "2030_mid"].set_index("h3")
 g["growth_2030_mid"] = g["h3"].map(d30["total_kwh_p50"]) / g["total_kwh_p50"].replace(0, np.nan)
@@ -285,8 +287,17 @@ import h3 as _h3
 gd = np.array([_h3.latlng_to_cell(a, b, 6) for a, b in zip(train.loc[train.city == "dundee", "lat"], train.loc[train.city == "dundee", "lon"])])
 r_dund = cross_validate(Xd, yd, gd, n_splits=min(5, len(set(gd))), num_rounds=300, log_target=True); rows.append({"scheme": "Dundee only, leave-H3(6)-cluster-out", "MAE": r_dund.mae, "R2": r_dund.r2})
 cv = pd.DataFrame(rows).round(3); print(cv.to_string(index=False))
-print("\nper-city fold scores (leave-city-out):"); print(r_city.per_fold.assign(city=[groups_city[te][0] for te in [np.where(np.isin(np.arange(len(y)), np.where(groups_city == c)[0]))[0] for c in pd.unique(groups_city)]] if False else sorted(pd.unique(groups_city))).round(2).to_string(index=False))"""),
-    ("md", """**Reading.** Random K-fold looks respectable; leave-city-out is the number that matters for anyone claiming their model "works in a new city", and it is much lower. Charger power dominates; context adds signal within a city but the level shifts between cities (Palo Alto's workplace chargers run ~4 sessions/day, Scottish council chargers ~1). Transfer without local calibration mainly moves the *ranking*, not the level — which is exactly how such a model should be used for London: to rank candidates, with the level set by observed aggregates (notebook 02)."""),
+from sklearn.metrics import mean_absolute_error, r2_score
+from scipy.stats import spearmanr
+oof = r_city.oof
+per_city = pd.DataFrame([{"city": c, "n": int((groups_city == c).sum()), "MAE": mean_absolute_error(y[groups_city == c], oof[groups_city == c]), "R2": r2_score(y[groups_city == c], oof[groups_city == c]), "Spearman": spearmanr(y[groups_city == c], oof[groups_city == c]).correlation} for c in sorted(pd.unique(groups_city))]).round(2)
+print(); print("per-city scores when trained on the other three cities (level vs ranking):"); print(per_city.to_string(index=False))
+# level-free variant: predict each station's usage relative to its city's median (removes the city level shift)
+y_rel = np.log1p(y) - pd.Series(np.log1p(y)).groupby(groups_city).transform("median").to_numpy()
+r_rel = cross_validate(X, y_rel, groups_city, n_splits=4, num_rounds=300, log_target=False)
+rel_city = pd.DataFrame([{"city": c, "Spearman_within_city": spearmanr(y_rel[groups_city == c], r_rel.oof[groups_city == c]).correlation} for c in sorted(pd.unique(groups_city))]).round(2)
+print(); print(f"level-free target (log usage relative to city median), leave-city-out R2 = {r_rel.r2:.2f}"); print(rel_city.to_string(index=False))"""),
+    ("md", """**Reading — the result is negative, and that is the point.** Random 5-fold reports a respectable R² because charger power and the city's overall level leak across folds. Leave-city-out R² is below zero: a model trained on three cities does not predict the fourth's usage level, and it does not reliably predict the *ranking* within the held-out city either (Spearman from −0.3 to +0.6 depending on the city). Removing the city level (relative target) helps only marginally. With ~200 chargers and OpenStreetMap context, "where the amenities are" explains little of where people actually charge — power, operator, pricing and network effects dominate. This is exactly the kind of evidence a hiring manager should ask for before trusting any geo-embedding site model: the validation must be out-of-city and against observed usage."""),
     ("md", "## 2. What the model uses"),
     ("code", """m = fit_lgbm(X, np.log1p(y), num_rounds=300)
 imp = pd.Series(m.feature_importance("gain"), index=feat_cols).sort_values(ascending=False)
@@ -315,7 +326,7 @@ ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlabel("structural allocation
 ax.set_title(f"Two independent views of London rapid-site demand (ρ = {rho:.2f})", loc="left"); save(fig, "05_transfer_vs_structural.png"); plt.show()
 j.groupby("borough")[["pred_spd_p50", "alloc_per_port"]].median().sort_values("pred_spd_p50", ascending=False).round(2).head(10)"""),
     ("md", """## Reading
-Two models that share no parameters — a structural demand model driven by EV stock, housing and traffic, and a transfer model trained on observed sessions elsewhere — agree on the *ranking* of London's rapid sites to a degree reported above. Where they disagree is informative: the transfer model knows nothing about London's taxi/PHV fleet, the structural model knows nothing about micro-siting quality (visibility, access, adjacent amenities). Both are needed, and both are weaker than one season of the network's own data — which is why the closing section of the README sets out what to measure once hubs open."""),
+Two models that share no parameters — a structural demand model driven by EV stock, housing and traffic, and a transfer model trained on observed sessions elsewhere — produce **essentially uncorrelated** rankings of London's rapid sites (ρ reported above). Given the transfer model's out-of-city failure, the disagreement says more about the transfer model than about London. The structural model at least reproduces observed aggregates (notebook 02); the transfer model reproduces nothing outside its training cities. Both are weaker than one season of the network's own data — which is why the README sets out what to measure once hubs open, and why the choice model's parameters are flagged as the first thing to estimate from revealed preferences."""),
 ]
 nb(nb05, NB / "05_utilisation_transfer.ipynb")
 
