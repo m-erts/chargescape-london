@@ -87,15 +87,15 @@ ul.links{font-size:1.05em;line-height:1.6;padding-left:1.1em} code{font-family:"
 <h2>Where the demand lands today — and where queues form at the peak hour <span class="tag">live map</span></h2>
 <div class="mapwrap"><iframe src="../maps/rapid_network_load_2026.html" loading="lazy" title="network load map"></iframe>
 <aside>
- <div class="stat orange"><div class="big">174 / 366</div><div class="lbl">rapid sites with P(wait) > 0.5 at the peak hour</div></div>
- <div class="stat teal"><div class="big">17%</div><div class="lbl">median 24 h utilisation of a rapid site</div></div>
+ <div class="stat orange"><div class="big">348 / 632</div><div class="lbl">rapid sites with P(wait) > 0.5 at the peak hour</div></div>
+ <div class="stat teal"><div class="big">15%</div><div class="lbl">median 24 h utilisation of a rapid site</div></div>
  <p class="note">MNL station choice on OSM drive times (igraph), Erlang-C queues with 38-min service. Supply: Open Charge Map ∪ OSM ∪ NCR, ports calibrated to DfT borough totals. For any candidate hub the model splits captured demand into new vs cannibalised — typically 70–80 % is taken from existing sites.</p>
 </aside></div></section><section class="slide ">
 <h2>Siting new 4 × 150 kW hubs under budget, capacity, grid and demand uncertainty <span class="tag">live map</span></h2>
 <div class="mapwrap"><iframe src="../maps/siting_hubs_budget_20m.html" loading="lazy" title="siting map"></iframe>
 <aside>
  <img src="img/04_budget_curve.png" alt="budget curve" class="small">
- <p class="note"><b>£20M ⇒ 51 hubs serving 58% of unmet rapid demand (1,699 of 2,936 sessions/day). £40M ⇒ 101 hubs, 88%.</b></p>
+ <p class="note"><b>£20M ⇒ 51 hubs serving 61% of unmet rapid demand (1,647 of 2,686 sessions/day). £40M ⇒ 98 hubs, 86%.</b></p>
  <p class="note">The regime is capacity-bound: a hub absorbs ≈33 sessions/day at P(wait) ≤ 15 %, so coverage grows almost linearly with budget. Greedy uncapacitated coverage overstates served demand several-fold. Low P50/robust overlap is degeneracy — many equivalent hub sets — not fragility.</p>
 </aside></div></section><section class="slide ">
 <h2>Do context features explain observed utilisation anywhere? A negative result, on purpose</h2>

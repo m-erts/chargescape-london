@@ -20,7 +20,7 @@ html,body{margin:0;height:100%;font:14px/1.4 -apple-system,Segoe UI,Helvetica,Ar
 </style></head><body>
 <div id="map"></div>
 <div class="panel"><h1>Where the next hubs go — £20M budget</h1><p>Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity, primary-substation headroom filter. Grey = demand today's network does not serve at an acceptable wait.</p><div class="btns"><button data-model="all" class="on">both</button><button data-model="p50">P50 solution</button><button data-model="robust">robust solution</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
-<div class="legend"><b>Unmet rapid demand (sessions/day)</b><div class="lg"><i style="background:#f7f7f7"></i>< 0.1</div><div class="lg"><i style="background:#d9d9d9"></i>0.1 – 0.3</div><div class="lg"><i style="background:#bdbdbd"></i>0.3 – 0.5</div><div class="lg"><i style="background:#969696"></i>0.5 – 0.9</div><div class="lg"><i style="background:#636363"></i>0.9 – 1.9</div><div class="lg"><i style="background:#252525"></i>≥ 1.9</div></div><div class="legend" style="left:auto;right:12px"><b>Selected hubs, £20M</b><div class="lg"><i style="background:#e4572e;border-radius:50%"></i>P50 solution</div><div class="lg"><i style="background:#1b4965;border-radius:50%"></i>robust (P10/P50/P90)</div></div>
+<div class="legend"><b>Unmet rapid demand (sessions/day)</b><div class="lg"><i style="background:#f7f7f7"></i>< 0.1</div><div class="lg"><i style="background:#d9d9d9"></i>0.1 – 0.3</div><div class="lg"><i style="background:#bdbdbd"></i>0.3 – 0.5</div><div class="lg"><i style="background:#969696"></i>0.5 – 0.9</div><div class="lg"><i style="background:#636363"></i>0.9 – 1.7</div><div class="lg"><i style="background:#252525"></i>≥ 1.7</div></div><div class="legend" style="left:auto;right:12px"><b>Selected hubs, £20M</b><div class="lg"><i style="background:#e4572e;border-radius:50%"></i>P50 solution</div><div class="lg"><i style="background:#1b4965;border-radius:50%"></i>robust (P10/P50/P90)</div></div>
 <script>
 const map = new maplibregl.Map({container:'map', style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', center:[-0.12, 51.505], zoom:9.3, pitch:0, attributionControl:true});
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -30,7 +30,7 @@ map.on('load', () => {
 
   map.addSource('hex', {type:'geojson', data:'data/hex_r8.geojson'});
   map.addSource('hubs', {type:'geojson', data:'data/hubs_budget_20m.geojson'});
-  map.addLayer({id:'hex-unmet', type:'fill', source:'hex', paint:{'fill-color': ["step", ["coalesce", ["get", "unmet"], 0], "#f7f7f7", 0.12, "#d9d9d9", 0.28, "#bdbdbd", 0.54, "#969696", 0.95, "#636363", 1.94, "#252525"], 'fill-opacity':0.6, 'fill-outline-color':'rgba(255,255,255,0.35)'} });
+  map.addLayer({id:'hex-unmet', type:'fill', source:'hex', paint:{'fill-color': ["step", ["coalesce", ["get", "unmet"], 0], "#f7f7f7", 0.15, "#d9d9d9", 0.33, "#bdbdbd", 0.54, "#969696", 0.86, "#636363", 1.71, "#252525"], 'fill-opacity':0.6, 'fill-outline-color':'rgba(255,255,255,0.35)'} });
   map.addLayer({id:'hubs', type:'circle', source:'hubs', paint:{
      'circle-radius': 8, 'circle-color': ['match',['get','model'],'p50','#e4572e','robust','#1b4965','#888'],
      'circle-opacity':0.92, 'circle-stroke-color':'#fff', 'circle-stroke-width':1.5} });

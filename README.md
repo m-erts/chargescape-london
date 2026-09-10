@@ -33,8 +33,8 @@ Interactive MapLibre GL maps (no API keys) and an [HTML slide deck with live map
 | Public charging demand 2026 | **285 GWh/yr** P50 (P10–P90 216–361); near-home 78, destination 55, taxi & PHV 152 | structural model on observed inputs |
 | Demand 2030 (DFES pathways) | 1,104 / 1,350 / 1,407 GWh/yr (low / mid / high) | model + UKPN DFES 2026 |
 | Implied rapid sessions per charger per day | ≈13 — consistent with TfL's observed 34 % occupancy of rapid units and 38-min sessions | cross-check, notebook 02 |
-| Rapid network today (366 sites, 2,637 ports after calibration to DfT borough totals) | median 24 h utilisation 17%; 174 sites with P(wait) > 0.5 at the peak hour | choice + queue model |
-| New hubs, £20M budget | 51 hubs serve 58% of unmet/queue-constrained rapid demand (1,699 of 2,936 sessions/day); £40M → 101 hubs, 88%. Regime is capacity-bound (≈33 sessions/day per 4×150 kW hub at P(wait) ≤ 15 %); greedy uncapacitated coverage overstates by ~1.5–5× | MILP, notebook 04 |
+| Rapid network today (632 sites, 2,860 ports after calibration to DfT borough totals) | median 24 h utilisation 15%; 348 sites with P(wait) > 0.5 at the peak hour | choice + queue model |
+| New hubs, £20M budget | 51 hubs serve 61% of unmet/queue-constrained rapid demand (1,647 of 2,686 sessions/day); £40M → 98 hubs, 86%. Regime is capacity-bound (≈33 sessions/day per 4×150 kW hub at P(wait) ≤ 15 %); greedy uncapacitated coverage overstates by ~1.5–5× | MILP, notebook 04 |
 | Context features vs observed utilisation (204 chargers, 4 cities) | R² 0.70 with random 5-fold, **−0.25 leave-city-out**; rankings do not transfer either | LightGBM, notebook 05, observed target |
 
 ## How it works
