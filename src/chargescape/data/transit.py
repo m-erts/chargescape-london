@@ -195,7 +195,7 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
                 break
             sps = data.get("stopPoints", data if isinstance(data, list) else [])
             stop_points.extend(sps)
-            total, page_size = data.get("total", len(sps)), data.get("pageSize", len(sps)) or len(sps)
+            total = data.get("total", len(sps))
             if len(stop_points) >= total or not sps:
                 break
             page += 1

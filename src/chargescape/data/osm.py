@@ -377,18 +377,22 @@ def _stringify_lists(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     for col in gdf.columns:
         if col == gdf.geometry.name or gdf[col].dtype != object:
             continue
-        has_list = gdf[col].map(lambda v: isinstance(v, (list, tuple, set))).any()
+        has_list = gdf[col].map(lambda v: isinstance(v, list | tuple | set)).any()
         if has_list:
-            gdf[col] = gdf[col].map(
-                lambda v: "|".join(map(str, v))
-                if isinstance(v, (list, tuple, set))
-                else (None if v is None else str(v))
-            )
+            gdf[col] = gdf[col].map(_join_or_str)
     return gdf
 
 
+def _join_or_str(v: Any) -> str | None:
+    if isinstance(v, list | tuple | set):
+        return "|".join(map(str, v))
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return None
+    return str(v)
+
+
 def _first(v: Any) -> Any:
-    return v[0] if isinstance(v, (list, tuple)) and v else v
+    return v[0] if isinstance(v, list | tuple) and v else v
 
 
 def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, Any]:
@@ -407,7 +411,7 @@ def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, An
         stats = {
             "n_nodes": len(nodes),
             "n_edges": len(edges),
-            "edge_km_directed": round(edges.length.sum() / 1000, 1),
+            "edge_km_directed": round(float(edges["length"].sum()) / 1000, 1),
             "skipped": True,
         }
         log.info("drive graph already built: %s", stats)
@@ -459,6 +463,7 @@ def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, An
     edges["is_major"] = edges["highway"].map(
         lambda v: any(h in MAJOR_HIGHWAYS for h in (v if isinstance(v, list) else [v]))
     )
+    n_maxspeed_missing = int(edges["maxspeed"].isna().sum()) if "maxspeed" in edges else int(len(edges))
     nodes = _stringify_lists(nodes)
     edges = _stringify_lists(edges)
     nodes.to_parquet(NODES_PATH, index=False)
@@ -493,14 +498,14 @@ def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, An
         "backend": backend,
         "n_nodes": int(len(nodes)),
         "n_edges": int(len(edges)),
-        "edge_km_directed": round(float(edges.length.sum()) / 1000, 1),
-        "edge_km_undirected": round(sum(d["length"] for _, _, d in Gu.edges(data=True)) / 1000, 1),
+        "edge_km_directed": round(float(edges["length"].sum()) / 1000, 1),
+        "edge_km_undirected": round(float(sum(d["length"] for _, _, d in Gu.edges(data=True))) / 1000, 1),
         "n_major_edges": int(len(major)),
-        "major_km_directed": round(float(major.length.sum()) / 1000, 1),
+        "major_km_directed": round(float(major["length"].sum()) / 1000, 1),
         "highway_counts": {str(k): int(v) for k, v in hw_counts.items()},
-        "speed_kph_missing_before_impute": int(edges["maxspeed"].isna().sum())
-        if "maxspeed" in edges
-        else None,
+        "n_edges_without_maxspeed_tag": n_maxspeed_missing,
+        "mean_speed_kph": round(float(edges["speed_kph"].mean()), 1),
+        "travel_time_hours_directed": round(float(edges["travel_time"].sum()) / 3600, 1),
         "seconds_build": t_build,
         "seconds_total": t_total(),
         "graphml_mb": round(GRAPHML_PATH.stat().st_size / 1e6, 1),
@@ -634,7 +639,7 @@ def _pois_from_overpass(
         tags = {"landuse": list(LANDUSE_VALUES)} if cat == "landuse" else _rules_to_osmnx_tags(POI_RULES[cat])
         t = Timer()
         gdf = _with_retries(
-            lambda: ox.features_from_polygon(polygon, tags), f"features[{cat}]", attempts=attempts
+            lambda tags=tags: ox.features_from_polygon(polygon, tags), f"features[{cat}]", attempts=attempts
         )
         if gdf is None or gdf.empty:
             out[cat] = ([], [])
@@ -726,7 +731,7 @@ def _pois_from_pbf(pbf: Path) -> tuple[list[dict], list, list[dict], list]:
 
 
 def fetch_pois(source: str = "auto", force: bool = False) -> dict[str, Any]:
-    """POIs by category -> data/interim/osm/pois.parquet (also writes landuse.parquet when using the PBF)."""
+    """POIs by category -> data/interim/osm/pois.parquet."""
     INTERIM_OSM.mkdir(parents=True, exist_ok=True)
     _configure_osmnx()
     if POIS_PATH.exists() and not force:
@@ -738,7 +743,7 @@ def fetch_pois(source: str = "auto", force: bool = False) -> dict[str, Any]:
     polygon = boundary.geometry.iloc[0]
     backend = _pick_backend(source, "pois")
     t = Timer()
-    pois = landuse = None
+    pois = None
     if backend == "overpass":
         try:
             res = _pois_from_overpass(polygon, list(POI_RULES), attempts=_attempts(source))
@@ -753,12 +758,8 @@ def fetch_pois(source: str = "auto", force: bool = False) -> dict[str, Any]:
     if pois is None:
         if not PBF_PATH.exists():
             fetch_pbf()
-        prow, pgeom, lrow, lgeom = _pois_from_pbf(PBF_PATH)
+        prow, pgeom, _, _ = _pois_from_pbf(PBF_PATH)  # landuse rows are rebuilt by fetch_landuse (cheap)
         pois = _finalise_pois(prow, pgeom, polygon)
-        landuse = _finalise_landuse(lrow, lgeom, polygon)
-        if landuse is not None and (force or not LANDUSE_PATH.exists()):
-            landuse.to_parquet(LANDUSE_PATH, index=False)
-            log.info("landuse.parquet written from PBF pass (%d polygons)", len(landuse))
     pois.to_parquet(POIS_PATH, index=False)
     by_cat = pois.category.value_counts().to_dict()
     by_sub = pois.groupby(["category", "subcategory"]).size().sort_values(ascending=False).head(60).to_dict()

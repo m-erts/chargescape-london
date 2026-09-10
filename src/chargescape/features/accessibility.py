@@ -42,14 +42,19 @@ class RoadGraph:
         return np.array([self.index_of[o] for o in np.atleast_1d(osmids)])
 
     def travel_time_matrix(self, sources: np.ndarray, targets: np.ndarray, chunk: int = 2000) -> np.ndarray:
-        """Seconds from each source vertex to each target vertex (directed). Shape (S, T)."""
-        out = np.empty((len(sources), len(targets)), dtype=np.float32)
-        for i in range(0, len(sources), chunk):
+        """Seconds from each source vertex to each target vertex (directed). Shape (S, T).
+        Duplicate vertices (several points snapping to one node) are handled by de-duplication."""
+        sources = np.asarray(sources)
+        targets = np.asarray(targets)
+        u_src, inv_src = np.unique(sources, return_inverse=True)
+        u_tgt, inv_tgt = np.unique(targets, return_inverse=True)
+        out = np.empty((len(u_src), len(u_tgt)), dtype=np.float32)
+        for i in range(0, len(u_src), chunk):
             block = self.g.distances(
-                source=sources[i : i + chunk].tolist(), target=targets.tolist(), weights="weight", mode="out"
+                source=u_src[i : i + chunk].tolist(), target=u_tgt.tolist(), weights="weight", mode="out"
             )
             out[i : i + chunk] = np.array(block, dtype=np.float32)
-        return out
+        return out[inv_src][:, inv_tgt]
 
 
 def accessibility_features(
