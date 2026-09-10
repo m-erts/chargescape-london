@@ -232,7 +232,8 @@ def main() -> None:
             js,
             _legend_html("MWh / year (P50 classes)", br, VIRIDIS),
             controls,
-        , layers=("hex_r8",)),
+            layers=("hex_r8",),
+        ),
         encoding="utf-8",
     )
 
@@ -262,7 +263,8 @@ def main() -> None:
             "Hexes: drive time on the OSM road network to the nearest rapid (≥50 kW) site. Circles: modelled site load from MNL allocation and Erlang-C queues; ports calibrated to DfT borough totals.",
             js,
             legend,
-        , layers=("hex_r8", "rapid_sites_2026")),
+            layers=("hex_r8", "rapid_sites_2026"),
+        ),
         encoding="utf-8",
     )
 
@@ -297,7 +299,8 @@ def main() -> None:
             js,
             legend,
             controls,
-        , layers=("hex_r8", hub_name)),
+            layers=("hex_r8", hub_name),
+        ),
         encoding="utf-8",
     )
 
