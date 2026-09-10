@@ -1,0 +1,24 @@
+# data: raw/interim never committed; processed only via explicit small files
+data/raw/
+data/interim/
+data/external/
+data/processed/*
+!data/processed/README.md
+!data/processed/*.small.parquet
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
+.venv/
+.env
+# outputs
+reports/maps/*.html
+!reports/maps/README.md
+*.log
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+mlruns/
