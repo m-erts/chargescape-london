@@ -315,9 +315,9 @@ def fetch_vehicle_stats(include_veh0125: bool = True) -> dict[str, pd.DataFrame]
         snap["piv_share_of_licensed_cars"] = snap["piv_total_est"] / snap["cars_licensed_est"].where(
             snap["cars_licensed_est"] > 0
         )
-        snap["piv_private_share_of_private_cars"] = (
-            snap["piv_private_est"] / snap["cars_licensed_private_est"].where(snap["cars_licensed_private_est"] > 0)
-        )
+        snap["piv_private_share_of_private_cars"] = snap["piv_private_est"] / snap[
+            "cars_licensed_private_est"
+        ].where(snap["cars_licensed_private_est"] > 0)
 
     # --- census denominators (when the census pipeline has run)
     feat_p = CENSUS_DIR / "lsoa21_london_features.parquet"
@@ -380,13 +380,19 @@ def _summary(res: dict[str, pd.DataFrame]) -> None:
             f"{snap['piv_total_est'].sum() / snap['cars_licensed_est'].sum():.2%}"
         )
     if "piv_per_1000_hh" in snap:
-        b = snap.groupby("lad22nm").agg(piv=("piv_total_est", "sum"), piv_private=("piv_private_est", "sum"),
-                                        hh=("households", "sum"), cars_private=("cars_licensed_private_est", "sum"))
+        b = snap.groupby("lad22nm").agg(
+            piv=("piv_total_est", "sum"),
+            piv_private=("piv_private_est", "sum"),
+            hh=("households", "sum"),
+            cars_private=("cars_licensed_private_est", "sum"),
+        )
         b["piv_per_1000_hh"] = 1000 * b["piv"] / b["hh"]
         b["private_piv_per_1000_hh"] = 1000 * b["piv_private"] / b["hh"]
         b["private_piv_share_private_cars"] = b["piv_private"] / b["cars_private"]
         b = b.sort_values("private_piv_per_1000_hh", ascending=False)
-        print("boroughs ranked by PRIVATE PiVs per 1,000 households (company-kept vehicles sit at registered offices):")
+        print(
+            "boroughs ranked by PRIVATE PiVs per 1,000 households (company-kept vehicles sit at registered offices):"
+        )
         print(pd.concat([b.head(5), b.tail(3)]).round(3).to_string())
     la = res["ev_la_timeseries"]
     print(

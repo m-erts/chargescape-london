@@ -45,6 +45,8 @@ STATION_STOP_TYPES = (
     "NaptanRailStation",
 )  # station level, not platforms/entrances/hubs
 NAPTAN_URL = "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv&atcoAreaCodes=490"
+# ATCO area 910 = National Rail stations (GB-wide); fallback for the national-rail mode when TfL 504s
+NAPTAN_RAIL_URL = "https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv&atcoAreaCodes=910"
 BUS_STOP_TYPES = ("BCT", "BCS", "BCQ")  # on-street bus/coach stop, bus station bay, variable bay
 BBOX_LONDON = (-0.51, 51.28, 0.33, 51.70)  # minx, miny, maxx, maxy (fallback if OSM boundary missing)
 
@@ -54,6 +56,7 @@ STATIONS_PATH = INTERIM_TRANSIT / "tfl_stations.parquet"
 BUS_STOPS_PATH = INTERIM_TRANSIT / "naptan_bus_stops_london.parquet"
 BIKEPOINTS_PATH = INTERIM_TRANSIT / "tfl_bikepoints.parquet"
 NAPTAN_CSV_PATH = RAW_TRANSIT / "naptan_atco490_london.csv"
+NAPTAN_RAIL_CSV_PATH = RAW_TRANSIT / "naptan_atco910_rail_stations.csv"
 REPORT_PATH = INTERIM_TRANSIT / "transit_build_report.json"
 BOUNDARY_PATH = INTERIM / "osm" / "greater_london_boundary.parquet"
 CRS_WGS84 = "EPSG:4326"
@@ -100,6 +103,58 @@ def _tfl_get(
     raise RuntimeError(f"TfL request failed for {path}: {last}")
 
 
+def _naptan_rail_stations(force: bool = False) -> pd.DataFrame:
+    """Active National Rail stations (StopType RLY) from NaPTAN ATCO area 910, GB-wide."""
+    if force:
+        NAPTAN_RAIL_CSV_PATH.unlink(missing_ok=True)
+    download(NAPTAN_RAIL_URL, NAPTAN_RAIL_CSV_PATH, timeout=300, retries=3)
+    df = pd.read_csv(NAPTAN_RAIL_CSV_PATH, dtype=str, keep_default_na=False, low_memory=False)
+    df = df[(df.StopType == "RLY") & (df.Status.str.lower() == "active")].copy()
+    df["lon"] = pd.to_numeric(df.Longitude, errors="coerce")
+    df["lat"] = pd.to_numeric(df.Latitude, errors="coerce")
+    return df.dropna(subset=["lon", "lat"])
+
+
+def _merge_naptan_rail(records: dict[str, dict], poly, force: bool = False) -> dict[str, int]:
+    """Add National Rail stations inside Greater London from NaPTAN 910 (TfL id = '910G' + TIPLOC)."""
+    gb = _naptan_rail_stations(force=force)
+    inside = gpd.GeoSeries(gpd.points_from_xy(gb.lon, gb.lat), crs=CRS_WGS84).within(poly).to_numpy()
+    df = gb[inside]
+    n_new = n_flagged = 0
+    for r in df.itertuples(index=False):
+        tfl_id = "910G" + r.ATCOCode[4:]  # NaPTAN '9100<TIPLOC>' -> TfL StopPoint id '910G<TIPLOC>'
+        if tfl_id in records:
+            rec = records[tfl_id]
+            if "national-rail" not in rec["modes"]:
+                rec["modes"] = sorted({*rec["modes"], "national-rail"})
+                n_flagged += 1
+            rec["query_modes"].append("naptan-910")
+            continue
+        n_new += 1
+        records[tfl_id] = {
+            "id": tfl_id,
+            "naptan_id": r.ATCOCode,
+            "name": r.CommonName,
+            "modes": ["national-rail"],
+            "lat": float(r.lat),
+            "lon": float(r.lon),
+            "stop_type": "NaptanRailStation",
+            "hub_naptan_code": None,
+            "station_naptan": None,
+            "lines": [],
+            "query_modes": ["naptan-910"],
+            "source": "naptan_910",
+        }
+    out = {
+        "naptan_910_rly_gb": int(len(gb)),
+        "inside_london": int(len(df)),
+        "new": n_new,
+        "flagged_existing": n_flagged,
+    }
+    log.info("national-rail fallback via NaPTAN 910: %s", out)
+    return out
+
+
 def _london_polygon():
     if BOUNDARY_PATH.exists():
         return gpd.read_parquet(BOUNDARY_PATH).geometry.iloc[0], "osm_boundary"
@@ -119,6 +174,8 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
 
     records: dict[str, dict] = {}
     raw_counts: dict[str, dict] = {}
+    poly, poly_src = _london_polygon()
+    failed_modes: list[str] = []
     for mode in TFL_MODES:
         t = time.perf_counter()
         stop_points: list[dict] = []
@@ -128,7 +185,14 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
             cache = RAW_TRANSIT / (
                 f"tfl_stoppoints_{mode}.json" if page == 1 else f"tfl_stoppoints_{mode}_p{page}.json"
             )
-            data = _tfl_get(f"/StopPoint/Mode/{mode}", params, cache_path=cache, force=force)
+            try:
+                # national-rail is the one mode TfL regularly cannot serve (504 "query timeout"): fail fast
+                kw = {"attempts": 2, "timeout": 90} if mode == "national-rail" else {}
+                data = _tfl_get(f"/StopPoint/Mode/{mode}", params, cache_path=cache, force=force, **kw)
+            except RuntimeError as e:
+                log.warning("TfL mode %s unavailable (%s)", mode, str(e)[:160])
+                failed_modes.append(mode)
+                break
             sps = data.get("stopPoints", data if isinstance(data, list) else [])
             stop_points.extend(sps)
             total, page_size = data.get("total", len(sps)), data.get("pageSize", len(sps)) or len(sps)
@@ -159,6 +223,7 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
                 "station_naptan": s.get("stationNaptan"),
                 "lines": sorted({ln.get("id") for ln in (s.get("lines") or []) if ln.get("id")}),
                 "query_modes": [mode],
+                "source": "tfl",
             }
         log.info(
             "TfL %-14s %5d stop points, %4d station-level, %4d new, %.1fs",
@@ -170,6 +235,14 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
         )
         time.sleep(1.5)
 
+    if "national-rail" in failed_modes:
+        raw_counts["national-rail"] = {
+            "tfl_error": True,
+            "fallback": _merge_naptan_rail(records, poly, force=force),
+        }
+        failed_modes.remove("national-rail")
+    if failed_modes:
+        raise RuntimeError(f"TfL StopPoint unavailable for modes {failed_modes}")
     df = pd.DataFrame(list(records.values()))
     df = df.dropna(subset=["lat", "lon"])
     df["modes_str"] = df["modes"].map("|".join)
@@ -177,7 +250,6 @@ def fetch_tfl_stations(force: bool = False) -> gpd.GeoDataFrame:
     for m in TFL_MODES:
         df[f"mode_{m.replace('-', '_')}"] = df["modes"].map(lambda ms, m=m: m in ms)
     df["rail_modes_str"] = df["modes"].map(lambda ms: "|".join(m for m in ms if m in TFL_MODES))
-    poly, poly_src = _london_polygon()
     gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=CRS_WGS84)
     gdf["in_greater_london"] = gdf.geometry.within(poly)
     gdf["boundary_source"] = poly_src
@@ -330,6 +402,7 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
             if step == "stations":
                 entry["by_rail_mode"] = {m: int(gdf[f"mode_{m.replace('-', '_')}"].sum()) for m in TFL_MODES}
                 entry["by_stop_type"] = gdf.stop_type.value_counts().to_dict()
+                entry["by_source"] = gdf.source.value_counts().to_dict()
             elif step == "bus":
                 entry["by_stop_type"] = gdf.stop_type.value_counts().to_dict()
                 entry["by_bus_stop_type"] = gdf.bus_stop_type.value_counts().to_dict()

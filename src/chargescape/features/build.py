@@ -14,6 +14,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from chargescape.features.context import dfes_2030_by_hex, headroom_by_hex, laei_vkm_by_hex
 from chargescape.features.grid import WGS84, areal_interpolate, count_points_by_cell, make_h3_grid
 from chargescape.features.supply import dedupe_within, harmonise_chargers, supply_features
 from chargescape.utils.io import read_gdf, write_gdf
@@ -178,7 +179,7 @@ def build(res: int = 8) -> gpd.GeoDataFrame:
     _log("demand side interpolated", t0)
     parts.append(supply_side(grid))
     _log("supply side done", t0)
-    for fn in (activity_side, transit_side, traffic_side):
+    for fn in (activity_side, transit_side, traffic_side, laei_vkm_by_hex, dfes_2030_by_hex, headroom_by_hex):
         r = fn(grid)
         if r is not None:
             parts.append(r)

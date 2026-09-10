@@ -126,6 +126,35 @@ _RE_HW_EXCLUDE = re.compile(
 _RE_SERVICE_EXCLUDE = re.compile("alley|driveway|emergency_access|parking|parking_aisle|private")
 
 
+# set once an Overpass step had to fall back to the PBF; later "auto" steps then skip Overpass
+_OVERPASS_DEGRADED = False
+
+
+def _pick_backend(source: str, what: str) -> str:
+    global _OVERPASS_DEGRADED  # noqa: PLW0603
+    if source != "auto":
+        return source
+    if _OVERPASS_DEGRADED:
+        log.info("%s: auto backend -> pbf (Overpass marked degraded earlier in this run)", what)
+        return "pbf"
+    backend = "overpass" if overpass_healthy() else "pbf"
+    if backend == "pbf":
+        _OVERPASS_DEGRADED = True
+    log.info("%s: auto backend -> %s", what, backend)
+    return backend
+
+
+def _mark_degraded(reason: str) -> None:
+    global _OVERPASS_DEGRADED  # noqa: PLW0603
+    _OVERPASS_DEGRADED = True
+    log.error("Overpass %s; falling back to the PBF backend (and for the rest of this run)", reason)
+
+
+def _attempts(source: str) -> int:
+    """auto: one Overpass try per step, then the sticky PBF fallback; explicit overpass: full retry budget."""
+    return 1 if source == "auto" else 4
+
+
 class Timer:
     def __init__(self) -> None:
         self.t0 = time.perf_counter()
@@ -268,6 +297,8 @@ def _with_retries(fn, what: str, attempts: int = 4, base_sleep: int = 30):
             return None
         except Exception as e:  # noqa: BLE001
             last = e
+            if i + 1 >= attempts:
+                break
             wait = base_sleep * (2**i)
             log.warning(
                 "%s failed (%s: %s) - retry %d/%d in %ds",
@@ -384,10 +415,7 @@ def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, An
 
     boundary = get_boundary()
     polygon = boundary.geometry.iloc[0]
-    backend = source
-    if backend == "auto":
-        backend = "overpass" if overpass_healthy() else "pbf"
-        log.info("auto backend -> %s", backend)
+    backend = _pick_backend(source, "graph")
 
     t_total = Timer()
     G: nx.MultiDiGraph | None = None
@@ -396,13 +424,13 @@ def build_drive_graph(source: str = "auto", force: bool = False) -> dict[str, An
             G = _with_retries(
                 lambda: ox.graph_from_polygon(polygon, network_type="drive", simplify=True),
                 "graph_from_polygon(drive)",
-                attempts=3,
+                attempts=_attempts(source),
                 base_sleep=60,
             )
         except Exception as e:  # noqa: BLE001
             if source != "auto":
                 raise
-            log.error("Overpass graph build failed (%s); falling back to PBF backend", e)
+            _mark_degraded(f"graph build failed ({e})")
             backend = "pbf"
     if G is None:
         if not PBF_PATH.exists():
@@ -598,14 +626,16 @@ def _features_to_rows(gdf: gpd.GeoDataFrame, category: str | None) -> tuple[list
 
 
 def _pois_from_overpass(
-    polygon, categories: Iterable[str], pause: float = 5.0
+    polygon, categories: Iterable[str], pause: float = 5.0, attempts: int = 4
 ) -> dict[str, tuple[list[dict], list]]:
     """One osmnx features_from_polygon query per category (plus landuse), with etiquette pauses."""
     out: dict[str, tuple[list[dict], list]] = {}
     for cat in categories:
         tags = {"landuse": list(LANDUSE_VALUES)} if cat == "landuse" else _rules_to_osmnx_tags(POI_RULES[cat])
         t = Timer()
-        gdf = _with_retries(lambda: ox.features_from_polygon(polygon, tags), f"features[{cat}]")
+        gdf = _with_retries(
+            lambda: ox.features_from_polygon(polygon, tags), f"features[{cat}]", attempts=attempts
+        )
         if gdf is None or gdf.empty:
             out[cat] = ([], [])
         else:
@@ -706,22 +736,19 @@ def fetch_pois(source: str = "auto", force: bool = False) -> dict[str, Any]:
 
     boundary = get_boundary()
     polygon = boundary.geometry.iloc[0]
-    backend = source
-    if backend == "auto":
-        backend = "overpass" if overpass_healthy() else "pbf"
-        log.info("auto backend -> %s", backend)
+    backend = _pick_backend(source, "pois")
     t = Timer()
     pois = landuse = None
     if backend == "overpass":
         try:
-            res = _pois_from_overpass(polygon, list(POI_RULES))
+            res = _pois_from_overpass(polygon, list(POI_RULES), attempts=_attempts(source))
             rows = [r for cat in POI_RULES for r in res[cat][0]]
             geoms = [g for cat in POI_RULES for g in res[cat][1]]
             pois = _finalise_pois(rows, geoms, polygon)
         except Exception as e:  # noqa: BLE001
             if source != "auto":
                 raise
-            log.error("Overpass POI queries failed (%s); falling back to PBF backend", e)
+            _mark_degraded(f"POI queries failed ({e})")
             backend = "pbf"
     if pois is None:
         if not PBF_PATH.exists():
@@ -756,19 +783,17 @@ def fetch_landuse(source: str = "auto", force: bool = False) -> dict[str, Any]:
         return {"skipped": True, "n_polygons": len(gdf), "by_landuse": gdf.landuse.value_counts().to_dict()}
     boundary = get_boundary()
     polygon = boundary.geometry.iloc[0]
-    backend = source
-    if backend == "auto":
-        backend = "overpass" if overpass_healthy() else "pbf"
+    backend = _pick_backend(source, "landuse")
     t = Timer()
     gdf = None
     if backend == "overpass":
         try:
-            rows, geoms = _pois_from_overpass(polygon, ["landuse"])["landuse"]
+            rows, geoms = _pois_from_overpass(polygon, ["landuse"], attempts=_attempts(source))["landuse"]
             gdf = _finalise_landuse(rows, geoms, polygon)
         except Exception as e:  # noqa: BLE001
             if source != "auto":
                 raise
-            log.error("Overpass landuse query failed (%s); falling back to PBF backend", e)
+            _mark_degraded(f"landuse query failed ({e})")
             backend = "pbf"
     if gdf is None:
         if not PBF_PATH.exists():
