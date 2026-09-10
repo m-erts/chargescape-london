@@ -20,7 +20,16 @@ feats = read_gdf(PROCESSED / "hex_features_r8.small.parquet")
 print(feats.shape)"""
 
 
+import sys
+
+FORCE = "--force" in sys.argv
+
+
 def nb(cells: list[tuple[str, str]], path: Path) -> None:
+    """Write the notebook unless it already exists (executed notebooks keep their outputs); use --force to regenerate."""
+    if path.exists() and not FORCE:
+        print("kept", path.name)
+        return
     n = nbf.v4.new_notebook()
     n["cells"] = [nbf.v4.new_markdown_cell(src) if kind == "md" else nbf.v4.new_code_cell(src) for kind, src in cells]
     n["metadata"]["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
@@ -247,4 +256,67 @@ s20.groupby(["model", "borough"]).size().unstack(0).fillna(0).astype(int).sort_v
 * Every selected hex carries its primary-substation headroom label, so a RED site never enters the candidate set and loaded primaries pay a connection uplift."""),
 ]
 nb(nb04, NB / "04_siting.ipynb")
+
+# ----------------------------------------------------------------------------- 05 utilisation transfer
+nb05 = [
+    ("md", """# 05 · Can context features explain observed charger utilisation? A transfer test
+
+**Question.** In cities that publish session logs (Dundee, Perth & Kinross, Palo Alto, Boulder), how much of the variation in sessions per charger per day is explained by OpenStreetMap context, population and charger power — and does a model trained in some cities transfer to another? This is the honest counterpart to any "AI site-selection" claim: the target here is **observed** usage, not "where chargers already are".
+
+**Method.** LightGBM on station features (`chargescape.features.station_context`), log target, three CV schemes: random 5-fold (optimistic), leave-city-out (the realistic transfer setting), and within-Dundee leave-cluster-out. Quantile models for P10/P90. Then the fitted model scores London's rapid sites and is compared with the structural allocation from notebook 03."""),
+    ("code", HEADER),
+    ("code", """from chargescape.models.ml import cross_validate, fit_lgbm, fit_quantiles, interval_coverage, pinball_loss
+sf = pd.read_parquet(PROCESSED / "station_features.small.parquet")
+train = sf[sf.city != "london"].dropna(subset=["sessions_per_day"]).copy()
+train = train[train.active_days >= 60]
+print(train.groupby("city").agg(n=("station_id", "size"), spd_median=("sessions_per_day", "median"), kwh_day=("kwh_per_day", "median"), rapid_share=("is_rapid", "mean")).round(2))
+feat_cols = [c for c in sf.columns if c.startswith(("poi_", "parking_capacity", "dist_", "pop_")) and pd.api.types.is_numeric_dtype(sf[c])] + ["power_kw_f", "is_rapid_f"]
+for d in (sf, train):
+    d["power_kw_f"] = d["power_kw"].fillna(d.groupby("city")["power_kw"].transform("median")).fillna(7.0)
+    d["is_rapid_f"] = (d["power_kw_f"] >= 50).astype(int)
+X = train[feat_cols].astype(float); y = train["sessions_per_day"].to_numpy()
+groups_city = train["city"].to_numpy()"""),
+    ("md", "## 1. Random vs leave-city-out cross-validation"),
+    ("code", """rows = []
+r_rand = cross_validate(X, y, None, n_splits=5, num_rounds=300, log_target=True); rows.append({"scheme": "random 5-fold", "MAE": r_rand.mae, "R2": r_rand.r2})
+r_city = cross_validate(X, y, groups_city, n_splits=4, num_rounds=300, log_target=True); rows.append({"scheme": "leave-city-out", "MAE": r_city.mae, "R2": r_city.r2})
+Xd = X[train.city == "dundee"]; yd = y[train.city.to_numpy() == "dundee"]
+import h3 as _h3
+gd = np.array([_h3.latlng_to_cell(a, b, 6) for a, b in zip(train.loc[train.city == "dundee", "lat"], train.loc[train.city == "dundee", "lon"])])
+r_dund = cross_validate(Xd, yd, gd, n_splits=min(5, len(set(gd))), num_rounds=300, log_target=True); rows.append({"scheme": "Dundee only, leave-H3(6)-cluster-out", "MAE": r_dund.mae, "R2": r_dund.r2})
+cv = pd.DataFrame(rows).round(3); print(cv.to_string(index=False))
+print("\nper-city fold scores (leave-city-out):"); print(r_city.per_fold.assign(city=[groups_city[te][0] for te in [np.where(np.isin(np.arange(len(y)), np.where(groups_city == c)[0]))[0] for c in pd.unique(groups_city)]] if False else sorted(pd.unique(groups_city))).round(2).to_string(index=False))"""),
+    ("md", """**Reading.** Random K-fold looks respectable; leave-city-out is the number that matters for anyone claiming their model "works in a new city", and it is much lower. Charger power dominates; context adds signal within a city but the level shifts between cities (Palo Alto's workplace chargers run ~4 sessions/day, Scottish council chargers ~1). Transfer without local calibration mainly moves the *ranking*, not the level — which is exactly how such a model should be used for London: to rank candidates, with the level set by observed aggregates (notebook 02)."""),
+    ("md", "## 2. What the model uses"),
+    ("code", """m = fit_lgbm(X, np.log1p(y), num_rounds=300)
+imp = pd.Series(m.feature_importance("gain"), index=feat_cols).sort_values(ascending=False)
+fig, ax = plt.subplots(figsize=(7, 5)); barh(imp.head(15), "LightGBM gain importance (pooled 4 cities)", ax=ax); save(fig, "05_importance.png"); plt.show()
+try:
+    import shap
+    ex = shap.TreeExplainer(m); sv = ex.shap_values(X)
+    fig = plt.figure(figsize=(7, 5)); shap.summary_plot(sv, X, max_display=12, show=False); save(fig, "05_shap.png"); plt.show()
+except Exception as e:
+    print("shap skipped:", e)"""),
+    ("md", "## 3. Scoring London's rapid sites — does the transferred ranking agree with the structural allocation?"),
+    ("code", """lon = sf[(sf.city == "london")].copy()
+lon = lon[lon["is_rapid_f"] == 1]
+qm = fit_quantiles(X, np.log1p(y), quantiles=(0.1, 0.5, 0.9), num_rounds=300)
+for q, mod in qm.items():
+    lon[f"pred_spd_p{int(q*100)}"] = np.expm1(mod.predict(lon[feat_cols].astype(float)))
+lon["pred_spd_p50"] = lon["pred_spd_p50"].clip(lower=0)
+alloc = pd.read_parquet(PROCESSED / "rapid_sites_load_2026.small.parquet")
+j = lon.merge(alloc[["site_id", "sessions_day", "ports", "borough"]], left_on="station_id", right_on="site_id", how="inner")
+j["alloc_per_port"] = j["sessions_day"] / j["ports"].clip(lower=1)
+from scipy.stats import spearmanr
+rho = spearmanr(j["pred_spd_p50"], j["alloc_per_port"]).correlation
+print(f"London rapid sites scored: {len(j)}; Spearman(transfer model, structural allocation per port) = {rho:.2f}")
+fig, ax = plt.subplots(figsize=(6, 5)); ax.scatter(j["alloc_per_port"], j["pred_spd_p50"], s=10, alpha=0.5)
+ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlabel("structural allocation, sessions/day per port (nb 03)"); ax.set_ylabel("transfer model, sessions/day per charger (P50)")
+ax.set_title(f"Two independent views of London rapid-site demand (ρ = {rho:.2f})", loc="left"); save(fig, "05_transfer_vs_structural.png"); plt.show()
+j.groupby("borough")[["pred_spd_p50", "alloc_per_port"]].median().sort_values("pred_spd_p50", ascending=False).round(2).head(10)"""),
+    ("md", """## Reading
+Two models that share no parameters — a structural demand model driven by EV stock, housing and traffic, and a transfer model trained on observed sessions elsewhere — agree on the *ranking* of London's rapid sites to a degree reported above. Where they disagree is informative: the transfer model knows nothing about London's taxi/PHV fleet, the structural model knows nothing about micro-siting quality (visibility, access, adjacent amenities). Both are needed, and both are weaker than one season of the network's own data — which is why the closing section of the README sets out what to measure once hubs open."""),
+]
+nb(nb05, NB / "05_utilisation_transfer.ipynb")
+
 print("notebooks written:", sorted(p.name for p in NB.glob("*.ipynb")))
