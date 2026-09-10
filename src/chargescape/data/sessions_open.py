@@ -49,7 +49,7 @@ import pandas as pd
 import requests
 
 from chargescape.utils.http import UA, download
-from chargescape.utils.paths import INTERIM, RAW
+from chargescape.utils.paths import INTERIM, RAW, ROOT
 
 SRC_RAW = RAW / "sessions_open"
 SRC_INTERIM = INTERIM / "sessions_open"
@@ -122,7 +122,7 @@ DUNDEE_STATION_LAYERS = {
 PKC_ITEMS = {
     "2016_2017": "79cec80b01764d9db32961c3476c9346",
     "2017_2018": "93748dde99cd45468a5e9c08f61c1953",
-    "2018_2019": "ca6cae3df2684d9d9d9280955890dd26" if False else "ca6cae3df2624832a2eaf678f2eabee8",
+    "2018_2019": "ca6cae3df2624832a2eaf678f2eabee8",
 }
 PKC_STATION_LAYER = "https://services-eu1.arcgis.com/WD0cvOmDKf7CA0Xy/arcgis/rest/services/Electric_Vehicle_Charging_Points/FeatureServer/10"
 
@@ -223,7 +223,7 @@ def _looks_like_html(path: Path) -> bool:
         head = path.open("rb").read(300).lstrip().lower()
     except OSError:
         return False
-    return head.startswith(b"<!doctype html") or head.startswith(b"<html")
+    return head.startswith((b"<!doctype html", b"<html", b"{", b"<?xml"))
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
@@ -293,10 +293,18 @@ def _smart_datetime(s: pd.Series, year_hint: tuple[int, int] | None = None) -> p
         if score > best_score:
             best_fmt, best_score = fmt, score
     out = pd.to_datetime(s, format=best_fmt, errors="coerce")
-    if out.isna().mean() > 0.2:  # mixed formats inside one file -> fall back to per-row parsing
+    rest = out.isna() & s.ne("") & s.str.lower().ne("nan")
+    if (
+        rest.any()
+    ):  # files mixing formats (e.g. Boulder switches to ISO in mid-2023): second pass on the remainder
         dayfirst = best_fmt.startswith("%d")
-        out2 = pd.to_datetime(s, errors="coerce", dayfirst=dayfirst, format="mixed")
-        out = out.fillna(out2)
+        for fmt in [f for f in _DATE_FORMATS if f != best_fmt and f.startswith(("%Y", best_fmt[:2]))]:
+            out.loc[rest] = pd.to_datetime(s[rest], format=fmt, errors="coerce")
+            rest = out.isna() & s.ne("") & s.str.lower().ne("nan")
+            if not rest.any():
+                break
+        if rest.any():
+            out.loc[rest] = pd.to_datetime(s[rest], errors="coerce", dayfirst=dayfirst, format="mixed")
     return out
 
 
@@ -531,8 +539,8 @@ def harmonise_dundee() -> tuple[pd.DataFrame, pd.DataFrame]:
     d = SRC_RAW / "dundee"
     frames = []
     for f in sorted((d / "hub").glob("*.csv")) + sorted((d / "legacy_ckan").glob("*.csv")):
-        if f.name == "cp-locations.csv":
-            continue
+        if f.name == "cp-locations.csv" or f.name.endswith("_2024_dup.csv"):
+            continue  # older Jan-2025 upload of the 2024 file (113,607 rows) superseded by the Jul-2025 re-upload
         df = _read_csv(f)
         s = parse_cps_style(df, "dundee", f.name, "Europe/London", year_hint=(2016, 2026))
         if s is not None:
@@ -546,7 +554,7 @@ def harmonise_dundee() -> tuple[pd.DataFrame, pd.DataFrame]:
         sessions[["station_id", "connector", "start_ts", "energy_kwh"]].astype(str).agg("|".join, axis=1),
     )
     sessions = sessions.loc[~key.duplicated()].copy()
-    log(f"  dundee: dropped {n0 - len(sessions):,} duplicate rows (2024 file is published twice)")
+    log(f"  dundee: dropped {n0 - len(sessions):,} duplicate rows (repeated SDR IDs)")
 
     # coordinates: council layers first, then the CPS network feed
     coords = []
@@ -618,8 +626,28 @@ def harmonise_dundee() -> tuple[pd.DataFrame, pd.DataFrame]:
         sessions["lat_source"] = sessions["station_id"].map(m["lat_source"])
         if "power_kw" not in sessions or sessions["power_kw"].isna().all():
             sessions["power_kw"] = sessions["station_id"].map(m["power_kw"])
+    # postcode-centroid fallback for charge points absent from the council layers / CPS feed
+    miss = sessions["lat"].isna() & sessions["postcode"].notna()
+    if miss.any():
+        cent = _postcode_centroids(
+            sessions.loc[miss, "postcode"].unique().tolist(), SRC_RAW / "_geocode" / "postcodes_io.json"
+        )
+        pc = sessions.loc[miss, "postcode"].str.replace(r"\s+", " ", regex=True).str.upper()
+        sessions.loc[miss, "lat"] = pc.map(lambda p: cent.get(p, (None, None))[0])
+        sessions.loc[miss, "lon"] = pc.map(lambda p: cent.get(p, (None, None))[1])
+        sessions.loc[miss & sessions["lat"].notna(), "lat_source"] = "postcode_centroid_postcodes_io"
+        log(f"  dundee: postcode centroids filled {int((miss & sessions['lat'].notna()).sum()):,} rows")
+    # last resort: a charge point whose site name matches located charge points (same hub) takes their centroid
+    miss = sessions["lat"].isna() & sessions["station_name"].notna()
+    if miss.any():
+        site = sessions.loc[~sessions["lat"].isna()].groupby("station_name")[["lat", "lon"]].median()
+        sessions.loc[miss, "lat"] = sessions.loc[miss, "station_name"].map(site["lat"])
+        sessions.loc[miss, "lon"] = sessions.loc[miss, "station_name"].map(site["lon"])
+        sessions.loc[miss & sessions["lat"].notna(), "lat_source"] = "same_site_name_centroid"
     sessions = _finalise_sessions(sessions)
-    stations = _station_table(sessions, coords_df, "dundee", "dundee_hub_csv+dcc_layers+cps_feed")
+    stations = _station_table(
+        sessions, coords_df, "dundee", "dundee_hub_csv+dcc_layers+cps_feed+postcodes_io"
+    )
     return sessions, stations
 
 
@@ -647,6 +675,25 @@ def fetch_pkc() -> Path:
     return d
 
 
+def _unswap_daymonth(ts: pd.Series) -> pd.Series:
+    """Undo an upstream day/month swap for rows with day <= 12.
+
+    The PKC CSVs were exported from d/m/Y source dates through a m/d/Y parser: dates with day <= 12 were
+    silently swapped, dates with day > 12 were kept.  Swapping them back makes the (time-sorted) files
+    strictly monotone and puts >99.5% of rows inside each file's nominal Sep-Aug window.
+    """
+    ok = ts.notna() & (ts.dt.day <= 12)
+    if not ok.any():
+        return ts
+    t = ts[ok]
+    swapped = pd.to_datetime({"year": t.dt.year, "month": t.dt.day, "day": t.dt.month}, errors="coerce") + (
+        t - t.dt.normalize()
+    )
+    out = ts.copy()
+    out.loc[ok] = swapped
+    return out
+
+
 def harmonise_pkc() -> tuple[pd.DataFrame, pd.DataFrame]:
     d = SRC_RAW / "perth_kinross"
     frames = []
@@ -659,6 +706,9 @@ def harmonise_pkc() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not frames:
         return _empty_sessions(), pd.DataFrame(columns=STATION_COLS)
     sessions = pd.concat(frames, ignore_index=True)
+    sessions["start_ts"] = _unswap_daymonth(sessions["start_ts"])
+    sessions["end_ts"] = _unswap_daymonth(sessions["end_ts"])
+    log("  pkc: corrected upstream day/month swap on dates with day <= 12 (see _unswap_daymonth)")
     sessions["session_id"] = sessions["source_file"] + "#" + sessions["session_id"].astype(str)
     coords_df = None
     p = d / "stations_electric_vehicle_charging_points.geojson"
@@ -769,7 +819,7 @@ def harmonise_palo_alto() -> tuple[pd.DataFrame, pd.DataFrame]:
         return _empty_sessions(), pd.DataFrame(columns=STATION_COLS)
     df = _read_csv(f)
     cols = {_norm_col(c): c for c in df.columns}
-    c = lambda k: df[cols[k]] if k in cols else pd.Series([None] * len(df), index=df.index)  # noqa: E731
+    c = lambda k: df[cols[k]] if k in cols else pd.Series(pd.NA, index=df.index, dtype="string")  # noqa: E731
     out = pd.DataFrame(index=df.index)
     out["city"] = "palo_alto"
     out["station_id"] = c("station_name").str.strip()
@@ -835,6 +885,25 @@ def _fetch_boulder_via_featureserver(dest: Path) -> Path | None:
     return dest
 
 
+def _clean(x) -> str:
+    x = "" if x is None or x is pd.NA or (isinstance(x, float) and pd.isna(x)) else str(x).strip()
+    return "" if x.lower() == "nan" else x
+
+
+def _boulder_query(street, city, postcode) -> dict | None:
+    """Structured Nominatim query for a Boulder station address (same key on fetch and harmonise side)."""
+    street = _clean(street)
+    if not street:
+        return None
+    return {
+        "street": street,
+        "city": _clean(city) or "Boulder",
+        "state": "Colorado",
+        "postalcode": _clean(postcode),
+        "country": "USA",
+    }
+
+
 def _nominatim_geocode(queries: list[dict], cache_path: Path) -> dict:
     """Structured Nominatim geocoding with an on-disk cache and the 1 req/s usage policy."""
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
@@ -890,18 +959,9 @@ def fetch_boulder(geocode: bool = True) -> Path:
         ].drop_duplicates()
         queries = []
         for _, row in addr.iterrows():
-            street, city, pc = [str(x).strip() for x in row.tolist()]
-            if not street or street == "nan":
-                continue
-            queries.append(
-                {
-                    "street": street,
-                    "city": city or "Boulder",
-                    "state": "Colorado",
-                    "postalcode": pc if pc and pc != "nan" else "",
-                    "country": "USA",
-                }
-            )
+            q = _boulder_query(*row.tolist())
+            if q is not None:
+                queries.append(q)
         log(f"  boulder: geocoding {len(queries)} distinct addresses via Nominatim (cached)")
         _nominatim_geocode(queries, d / "geocode_nominatim.json")
     _save_meta(
@@ -925,13 +985,19 @@ def harmonise_boulder() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not f.exists():
         return _empty_sessions(), pd.DataFrame(columns=STATION_COLS)
     df = _read_csv(f)
+    content_cols = [c for c in df.columns if _norm_col(c) not in ("objectid", "objectid2", "fid")]
+    n0 = len(df)
+    df = df.drop_duplicates(subset=content_cols).reset_index(drop=True)
+    log(
+        f"  boulder: dropped {n0 - len(df):,} exact duplicate transactions (source table holds overlapping loads)"
+    )
     cols = {_norm_col(c): c for c in df.columns}
 
     def pick(*cands):
         for k in cands:
             if k in cols:
                 return df[cols[k]]
-        return pd.Series([None] * len(df), index=df.index)
+        return pd.Series(pd.NA, index=df.index, dtype="string")
 
     out = pd.DataFrame(index=df.index)
     out["city"] = "boulder"
@@ -965,17 +1031,9 @@ def harmonise_boulder() -> tuple[pd.DataFrame, pd.DataFrame]:
     if cache_p.exists():
         cache = json.loads(cache_p.read_text())
         lat, lon = [], []
-        for street, city, pc in zip(
-            pick("address").fillna(""), pick("city").fillna(""), out["postcode"].fillna(""), strict=False
-        ):
-            q = {
-                "street": str(street).strip(),
-                "city": str(city).strip() or "Boulder",
-                "state": "Colorado",
-                "postalcode": str(pc).strip() if str(pc).strip() != "nan" else "",
-                "country": "USA",
-            }
-            hit = cache.get(json.dumps(q, sort_keys=True))
+        for street, city, pc in zip(pick("address"), pick("city"), out["postcode"], strict=False):
+            q = _boulder_query(street, city, pc)
+            hit = cache.get(json.dumps(q, sort_keys=True)) if q is not None else None
             lat.append(hit["lat"] if hit else None)
             lon.append(hit["lon"] if hit else None)
         out["lat"], out["lon"] = lat, lon
@@ -1211,6 +1269,35 @@ def fetch_cps() -> Path:
     return d
 
 
+def _postcode_centroids(postcodes: list[str], cache_path: Path) -> dict[str, tuple[float, float]]:
+    """UK postcode -> (lat, lon) centroid via postcodes.io (ONS Postcode Directory, OGL; no key), cached."""
+    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    todo = sorted(
+        {re.sub(r"\s+", " ", p.strip().upper()) for p in postcodes if isinstance(p, str) and p.strip()}
+        - set(cache)
+    )
+    for i in range(0, len(todo), 100):
+        chunk = todo[i : i + 100]
+        try:
+            r = requests.post(
+                "https://api.postcodes.io/postcodes",
+                json={"postcodes": chunk},
+                headers={"User-Agent": UA},
+                timeout=60,
+            )
+            r.raise_for_status()
+            for item in r.json().get("result", []):
+                res = item.get("result")
+                cache[item["query"]] = [res["latitude"], res["longitude"]] if res else None
+        except Exception as e:  # noqa: BLE001
+            log(f"  ! postcodes.io failed: {e}")
+            break
+        time.sleep(0.5)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(cache, indent=1))
+    return {k: tuple(v) for k, v in cache.items() if v}
+
+
 def _cps_coords() -> pd.DataFrame | None:
     files = sorted((SRC_RAW / "chargeplace_scotland").glob("cps_locations_*.json"))
     if not files:
@@ -1401,7 +1488,7 @@ def _write(name: str, df: pd.DataFrame) -> Path:
     SRC_INTERIM.mkdir(parents=True, exist_ok=True)
     p = SRC_INTERIM / f"{name}.parquet"
     df.to_parquet(p, index=False)
-    log(f"  wrote {p.relative_to(RAW.parent.parent)}  rows={len(df):,}  size={p.stat().st_size / 1e6:.1f} MB")
+    log(f"  wrote {p.relative_to(ROOT)}  rows={len(df):,}  size={p.stat().st_size / 1e6:.1f} MB")
     return p
 
 
