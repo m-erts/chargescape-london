@@ -1,5 +1,7 @@
 """Small, polite HTTP helpers with on-disk caching (no external deps beyond requests)."""
+
 from __future__ import annotations
+
 import hashlib
 import json
 import time
@@ -11,7 +13,9 @@ import requests
 UA = "chargescape-london/0.1 (research; github portfolio project)"
 
 
-def download(url: str, dest: Path, *, timeout: int = 120, retries: int = 3, headers: dict | None = None) -> Path:
+def download(
+    url: str, dest: Path, *, timeout: int = 120, retries: int = 3, headers: dict | None = None
+) -> Path:
     """Download url to dest if dest does not exist. Returns dest."""
     dest = Path(dest)
     if dest.exists() and dest.stat().st_size > 0:
@@ -35,7 +39,9 @@ def download(url: str, dest: Path, *, timeout: int = 120, retries: int = 3, head
     raise RuntimeError(f"failed to download {url}: {last}")
 
 
-def get_json(url: str, params: dict | None = None, *, cache_dir: Path | None = None, timeout: int = 120) -> Any:
+def get_json(
+    url: str, params: dict | None = None, *, cache_dir: Path | None = None, timeout: int = 120
+) -> Any:
     """GET JSON with optional file cache keyed by url+params."""
     key = hashlib.sha1((url + json.dumps(params or {}, sort_keys=True)).encode()).hexdigest()[:16]
     if cache_dir is not None:
