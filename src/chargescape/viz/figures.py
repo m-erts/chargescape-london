@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from chargescape.utils.io import read_gdf
-from chargescape.utils.paths import FIGURES, INTERIM
+from chargescape.utils.paths import FIGURES
+from chargescape.utils.reference import boroughs as _boroughs
 
 plt.rcParams.update(
     {
@@ -25,7 +25,7 @@ plt.rcParams.update(
 
 
 def boroughs() -> gpd.GeoDataFrame:
-    return read_gdf(INTERIM / "census" / "lad24_london.parquet").to_crs(27700)
+    return _boroughs()
 
 
 def hex_map(

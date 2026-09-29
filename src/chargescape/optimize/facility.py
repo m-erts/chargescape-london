@@ -28,6 +28,7 @@ class SitingResult:
     assignments: np.ndarray  # (n_cells, n_candidates) shares for the base scenario
     objective: float
     status: str
+    gap: float = float("nan")  # relative MIP gap reported by HiGHS (0 = proven optimal)
 
     @property
     def coverage_share(self) -> float:
@@ -64,7 +65,7 @@ def capacitated_mclp(
     rows, cols, vals, lb, ub = [], [], [], [], []
     r = 0
     # coverage: Σ_j y_ij <= 1 for each i with pairs
-    for i_idx, grp in _group(ii, n):
+    for _i, grp in _group(ii, n):
         rows += [r] * len(grp)
         cols += (m + grp).tolist()
         vals += [1.0] * len(grp)
@@ -123,7 +124,13 @@ def capacitated_mclp(
     Aasg[ii, jj] = y
     covered = float((d[:, None] * Aasg).sum())
     return SitingResult(
-        sel, covered, float(d.sum()), Aasg, float(-res.fun), "Optimal" if res.status == 0 else res.message
+        sel,
+        covered,
+        float(d.sum()),
+        Aasg,
+        float(-res.fun),
+        "Optimal" if res.status == 0 else res.message,
+        _gap(res),
     )
 
 
@@ -157,7 +164,7 @@ def robust_capacitated_mclp(
         off = m + s_idx * k
         if not worst_case:
             c[off : off + k] = -scenario_weights[s] * d[ii]
-        for i_idx, grp in _group(ii, n):
+        for _i, grp in _group(ii, n):
             rows += [r] * len(grp)
             cols += (off + grp).tolist()
             vals += [1.0] * len(grp)
@@ -219,8 +226,19 @@ def robust_capacitated_mclp(
     d0 = np.asarray(demand_scenarios[base], float)
     covered = float((d0[:, None] * Aasg).sum())
     return SitingResult(
-        sel, covered, float(d0.sum()), Aasg, float(-res.fun), "Optimal" if res.status == 0 else res.message
+        sel,
+        covered,
+        float(d0.sum()),
+        Aasg,
+        float(-res.fun),
+        "Optimal" if res.status == 0 else res.message,
+        _gap(res),
     )
+
+
+def _gap(res) -> float:
+    g = getattr(res, "mip_gap", None)
+    return float(g) if g is not None else float("nan")
 
 
 def _group(keys: np.ndarray, nkeys: int):

@@ -46,15 +46,18 @@ def utilities(
 
 
 def choice_probabilities(v: np.ndarray, outside_utility: float | None = None) -> np.ndarray:
-    """Row-wise softmax with optional outside option. Rows with no feasible station get zeros."""
-    vmax = np.max(np.where(np.isfinite(v), v, -1e9), axis=1, keepdims=True)
-    ev = np.where(np.isfinite(v), np.exp(v - vmax), 0.0)
+    """Row-wise softmax with an optional outside option. Rows with no feasible station get zeros.
+    Numerically stable: each row is shifted by its largest utility (including the outside option)."""
+    finite = np.isfinite(v)
+    vmax = np.max(np.where(finite, v, -np.inf), axis=1, keepdims=True)
+    if outside_utility is not None:
+        vmax = np.maximum(vmax, outside_utility)
+    vmax = np.where(np.isfinite(vmax), vmax, 0.0)
+    ev = np.where(finite, np.exp(np.where(finite, v, 0.0) - vmax), 0.0)
     denom = ev.sum(axis=1, keepdims=True)
     if outside_utility is not None:
         denom = denom + np.exp(outside_utility - vmax)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        pr = np.where(denom > 0, ev / denom, 0.0)
-    return pr
+    return np.divide(ev, denom, out=np.zeros_like(ev), where=denom > 0)
 
 
 def allocate_demand(origin_demand: np.ndarray, probs: np.ndarray) -> np.ndarray:

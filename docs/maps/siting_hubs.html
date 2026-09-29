@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChargeScape London · Where the next hubs go</title>
+<link href="../vendor/maplibre-gl-4.7.1/maplibre-gl.css" rel="stylesheet"><script src="../vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script><script src="data/hex_r8.js"></script><script src="data/hubs_all_budgets.js"></script>
+<style>
+html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1a2027;background:#eef0ec}
+#map{position:absolute;inset:0}
+.panel{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:12px 14px;border-radius:8px;max-width:370px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.panel h1{font:600 16px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.panel p{margin:0 0 8px;color:#4b5763;font-size:12.5px}
+.status{display:inline-block;font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:10px;background:#e6f2f0;color:#0a665c;margin-bottom:8px}
+.status.model{background:#fdeee8;color:#a8401f}
+.nav a{font-size:12px;color:#0c7c70;margin-right:10px}
+.legend{position:absolute;bottom:30px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.legend.right{left:auto;right:12px;bottom:40px}
+.legend b{display:block;margin-bottom:6px}
+.lg{display:flex;align-items:center;gap:8px;margin:2px 0}
+.lg i{display:inline-block;width:16px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
+.btns button{font:12px/1 inherit;padding:5px 9px;border:1px solid #cfd6dc;border-radius:14px;background:#fff;cursor:pointer;color:#1a2027}
+.btns button.on{background:#0c7c70;color:#fff;border-color:#0c7c70}
+.btns button:focus-visible{outline:2px solid #0c7c70;outline-offset:1px}
+.maplibregl-popup-content{font-size:12.5px;line-height:1.45;padding:10px 12px}
+.note{position:absolute;right:12px;top:12px;z-index:6;background:#fff8e6;border:1px solid #f0d9a6;border-radius:6px;padding:6px 9px;font-size:12px;display:none}
+.nobasemap .note{display:block}
+body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
+body.embed .panel{padding:6px 8px;max-width:none}
+body.embed .panel:not(:has(button)){display:none}
+body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px}
+</style></head><body>
+<div id="map"></div>
+<div class="panel"><span class="status model">model · optimisation</span><h1>Where the next hubs go</h1><p>Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity per hub, primary-substation headroom filter. Grey: demand today's network does not serve at an acceptable wait. Switch budgets and solutions.</p><div class="btns" data-group="budget"><button data-v="5">£5M</button><button data-v="10">£10M</button><button data-v="20" class="on">£20M</button><button data-v="40">£40M</button></div><div class="btns" data-group="model"><button data-v="all" class="on">both</button><button data-v="p50">P50 solution</button><button data-v="robust">robust</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
+<div class="legend" ><b>Unmet rapid demand, sessions/day</b><div class="lg"><i style="background:#f7f7f7"></i>< 0.1</div><div class="lg"><i style="background:#d9d9d9"></i>0.1 – 0.3</div><div class="lg"><i style="background:#bdbdbd"></i>0.3 – 0.5</div><div class="lg"><i style="background:#969696"></i>0.5 – 0.9</div><div class="lg"><i style="background:#636363"></i>0.9 – 1.7</div><div class="lg"><i style="background:#252525"></i>≥ 1.7</div></div><div class="legend right" ><b>Selected 4 × 150 kW hubs</b><div class="lg"><i style="background:#e4572e;border-radius:50%;"></i>P50 solution</div><div class="lg"><i style="background:#1b4965;border-radius:50%;"></i>robust over P10/P50/P90</div><div class="lg">£5M: 12 hubs (P50), 12 (robust)</div><div class="lg">£10M: 25 hubs (P50), 25 (robust)</div><div class="lg">£20M: 51 hubs (P50), 51 (robust)</div><div class="lg">£40M: 98 hubs (P50), 102 (robust)</div></div>
+<div class="note">Basemap unavailable — showing data layers on a plain background.</div>
+<script>
+const EMBED = new URLSearchParams(location.search).has('embed') || window.self !== window.top;
+if (EMBED) document.body.classList.add('embed');
+const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#eef0ec'}}]};
+const map = new maplibregl.Map({container: 'map', style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
+map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
+function layer(name) {
+  const d = (window.CS_DATA || {})[name];
+  if (!d) { const b = document.createElement('div'); b.className = 'legend right'; b.style.top = '60px'; b.style.bottom = 'auto';
+    b.innerHTML = '<b>Data layer “' + name + '” did not load.</b>Open the GitHub Pages version or serve the folder: python -m http.server'; document.body.appendChild(b); }
+  return d || {type: 'FeatureCollection', features: []};
+}
+function popup(html, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '320px'}).setLngLat(lngLat).setHTML(html).addTo(map); }
+function pointer(id) { map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); }
+function buttons(group, onPick) { document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(x => x.classList.toggle('on', x === btn)); onPick(btn.dataset.v); }); }
+function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.style.display = el.dataset.legend === key ? '' : 'none'); }
+let added = false, styleReady = false, fitted = false;
+function ensureFit() { const c = map.getContainer(); if (fitted || c.clientWidth < 80 || c.clientHeight < 80) return;
+  fitted = true; map.resize(); map.fitBounds([[-0.52, 51.28], [0.34, 51.7]], {padding: EMBED ? 8 : 30, duration: 0}); }
+map.on('resize', ensureFit);
+function useFallback(reason) { if (styleReady) return; styleReady = true; console.warn('basemap unavailable (' + reason + ')'); document.body.classList.add('nobasemap'); map.setStyle(FALLBACK); }
+map.on('style.load', () => { styleReady = true; ensureFit(); if (!added) { added = true; addLayers(); } });
+map.on('error', e => { const m = e && e.error ? String(e.error.message || e.error) : String(e); console.error('maplibre:', m); if (!added) useFallback(m); });
+setTimeout(() => { if (!added) useFallback('timeout'); }, 7000);
+if (EMBED) {
+  map.keyboard.disable();
+  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'f', 'F'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
+}
+
+let BUDGET = 20, MODEL = 'all';
+function applyFilter() { const f = ['all', ['==', ['get', 'budget'], BUDGET]]; if (MODEL !== 'all') f.push(['==', ['get', 'model'], MODEL]); map.setFilter('hubs', f); }
+function addLayers() {
+  map.addSource('hex', {type: 'geojson', data: layer('hex_r8')});
+  map.addSource('hubs', {type: 'geojson', data: layer('hubs_all_budgets')});
+  map.addLayer({id: 'hex', type: 'fill', source: 'hex', paint: {'fill-color': ["step", ["coalesce", ["get", "unmet"], 0], "#f7f7f7", 0.15, "#d9d9d9", 0.33, "#bdbdbd", 0.54, "#969696", 0.86, "#636363", 1.71, "#252525"], 'fill-opacity': 0.62, 'fill-outline-color': 'rgba(255,255,255,0.35)'}});
+  map.addLayer({id: 'hubs', type: 'circle', source: 'hubs', paint: {'circle-radius': ['match', ['get', 'model'], 'p50', 8, 5.5], 'circle-color': ['match', ['get', 'model'], 'p50', '#e4572e', '#1b4965'], 'circle-opacity': 0.92, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+  applyFilter();
+  map.on('click', 'hubs', e => { const p = e.features[0].properties;
+    popup(`<b>Hub, ${p.model === 'p50' ? 'P50 solution' : 'robust solution'}</b> · ${p.borough}<br>4 × 150 kW, capex £${(p.cost_gbp / 1e6).toFixed(2)}M (budget £${p.budget}M)<br>Unmet demand assigned: <b>${p.sessions_day_assigned}</b> sessions/day`, e.lngLat); });
+  map.on('click', 'hex', e => { if (map.queryRenderedFeatures(e.point, {layers: ['hubs']}).length) return; const p = e.features[0].properties;
+    popup(`<b>${p.borough}</b><br>Unmet or queue-constrained rapid demand: <b>${p.unmet}</b> sessions/day<br>Expected wait today: ${p.wait} min`, e.lngLat); });
+  pointer('hubs');
+}
+buttons('budget', v => { BUDGET = +v; if (map.getLayer('hubs')) applyFilter(); });
+buttons('model', v => { MODEL = v; if (map.getLayer('hubs')) applyFilter(); });
+
+</script></body></html>

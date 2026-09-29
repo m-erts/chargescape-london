@@ -103,7 +103,6 @@ def run(res: int = 8, n_draws: int = 500, seed: int = 42) -> pd.DataFrame:
     feats = pd.DataFrame(feats.drop(columns="geometry"))
     feats["attraction"] = attraction(feats)
     priors = DemandPriors(n_draws=n_draws, seed=seed)
-    rng = np.random.default_rng(seed + 1)
     frames = []
     # Company-kept EVs (salary-sacrifice leases, pool cars) also charge where they are kept, but a
     # few LSOAs host fleet head offices (e.g. 44k PiVs on 1.3k households in Westminster). We include

@@ -26,17 +26,17 @@ Nothing synthetic is ever presented as observed, and the README states which res
 
 ## 3. Model ladder
 
-| Level | Question | Method | Module |
+| Level | Question | Method | Where |
 |---|---|---|---|
-| L1 Supply audit | Where are chargers, of what power, and how does supply relate to EV ownership and housing? | spatial joins, Moran's I, Getis-Ord Gi*, drive-time gap analysis | notebooks 01–02 |
-| L2 Demand surface | How much public charging energy will each hex need? | structural bottom-up model with triangular priors and Monte Carlo (P10/P50/P90) | `models/structural_demand.py` |
-| L2b Utilisation transfer | Do OSM + population features explain observed per-charger utilisation in cities that publish sessions? | LightGBM with spatial cross-validation on Dundee / Perth & Kinross / Palo Alto / Boulder; honest transfer discussion | notebook 04 |
-| L3 Choice & cannibalisation | Which station will a driver choose, and how much of a new site's demand is new vs stolen? | multinomial logit / Huff with literature-informed parameters; incremental-demand decomposition | `models/choice.py` |
-| L4 Queueing | How many ports keep waiting acceptable at the peak hour? | Erlang C (M/M/c), required ports for a wait-probability SLA | `models/queueing.py` |
-| L5 Siting | Which candidates, under budget, capacity and coverage? | capacitated MCLP (PuLP/HiGHS), p-median and greedy baselines via spopt | `optimize/facility.py` |
-| L6 Robustness | Which sites stay good across demand scenarios? | two-stage scenario MILP (expected and worst case) over P10/P50/P90 | `optimize/facility.py` |
-| L7 Scenario analysis | What changes with budget, power mix, EV growth to 2030? | parameter sweeps, Pareto curves budget–coverage–wait | notebook 07 |
-| L8 Delivery | How does a planner use this? | pydeck / deck.gl interactive maps, static site, slide deck | `viz/`, `docs/maps/` |
+| L1 Supply audit | Where are chargers, of what power, and how does supply relate to EV ownership and housing? | three-source merge with 50 m de-duplication, Moran's I, Getis-Ord Gi*, drive-time gap analysis | `features/supply.py`, notebook 01 |
+| L2 Demand surface | How much public charging energy will each hex need, now and in 2030? | structural bottom-up model with triangular priors and Monte Carlo (P10/P50/P90); taxi & private-hire layer; DFES 2030 pathways | `models/structural_demand.py`, `models/demand_pipeline.py`, notebook 02 |
+| L3 Choice & queues | Which station does a driver choose, and where do queues form at the peak hour? | multinomial logit on drive times with an outside option; Erlang C per site; waits fed back into choice | `models/choice.py`, `models/queueing.py`, `models/allocation_pipeline.py`, notebook 03 |
+| L4 Cannibalisation | How much of a new hub's demand is new, and how much is taken from existing sites? | incremental-demand decomposition of the logit with an outside option | `allocation_pipeline.candidate_increment`, notebook 03 |
+| L5 Siting | Which candidates, under budget, hub capacity and grid headroom? | capacitated maximal covering MILP (SciPy / HiGHS) with capacity from Erlang C; greedy uncapacitated baseline | `optimize/facility.py`, `optimize/siting_pipeline.py`, notebook 04 |
+| L6 Robustness | Which sites stay good across demand scenarios? | two-stage scenario MILP over P10/P50/P90 (expected coverage; worst case available) | `optimize/facility.py`, notebook 04 |
+| L7 Sensitivity | What moves when behavioural and service assumptions change? | re-solve at £20M on a fixed candidate set for 9 changed assumptions; exact and same-or-adjacent-hex overlap with the base | `optimize/sensitivity.py`, notebook 04 |
+| L8 Transfer test | Do context features explain observed utilisation in cities that publish sessions, and does that transfer? | LightGBM on station context; random vs leave-city-out CV; scoring of London sites | `features/station_context.py`, `models/ml.py`, notebook 05 |
+| L9 Delivery | How does a planner use this? | MapLibre GL maps (offline-capable), HTML slides in English and Russian, PPTX backup, key-numbers file that feeds the README | `viz/export_maplibre.py`, `scripts/`, `docs/` |
 
 ## 4. Structural demand priors (L2)
 
@@ -49,11 +49,11 @@ Nothing synthetic is ever presented as observed, and the README states which res
 | Rapid share of public energy | 0.25 / 0.40 / 0.60 | UK network energy split between slow/fast on-street and rapid/ultra-rapid hubs (Zapmap / TfL utilisation by type) |
 | PHEV electric-km factor | 0.25 / 0.40 / 0.55 | Real-world PHEV utility-factor studies (ICCT) |
 
-The priors are deliberately wide. Calibration targets are aggregate observed quantities: total public energy implied by DfT/Zapmap charger counts and TfL-reported utilisation by charger type, and per-session kWh from open session logs. The model card in `docs/model_card.md` records the calibrated values and the sensitivity of every recommendation to each prior.
+The priors are deliberately wide. Calibration targets are aggregate observed quantities: total public energy implied by DfT/Zapmap charger counts and TfL-reported utilisation by charger type, and per-session kWh from open session logs. The model card in `docs/model_card.md` lists which priors dominate which component; notebook 04 reports how the siting result moves when the behavioural and service assumptions change.
 
 ## 5. Validation strategy
 
-1. **Spatial cross-validation** (leave-borough-out) for any fitted model; random K-fold is reported only as a contrast to show optimism.
+1. **Spatial cross-validation** (leave-group-out: city, borough or H3 parent) for any fitted model; random K-fold is reported only as a contrast to show its optimism.
 2. **Calibration to aggregates**: modelled city-wide energy vs implied energy from observed supply × observed utilisation.
 3. **Transfer test**: models trained on cities with observed sessions, scored out-of-city.
 4. **Post-hoc plan**: the README states exactly which observed quantity (utilisation of chargers opened after the analysis date, from future DfT/Zapmap releases) would confirm or refute each recommendation. This is the "predict → deploy → measure" loop that makes the system a decision tool rather than a map.
@@ -66,7 +66,8 @@ The priors are deliberately wide. Calibration targets are aggregate observed qua
 
 ## 7. Known limitations
 
-* No open London-specific session data at charger level; observed behaviour comes from other UK cities and from fleet trials (Optimise Prime) and is used for parameters, not for training a London target.
+* No open London-specific session data at charger level; observed behaviour comes from other UK cities and from fleet trials (Optimise Prime, Low Carbon London) and is used for parameters, not for training a London target.
+* Supply positions come from Open Charge Map, OpenStreetMap and a 2021 registry snapshot; ports missing from all three are represented by borough-level scaling to DfT totals, not by exact positions.
 * Area-weighted interpolation assumes uniform density inside LSOAs.
-* Choice-model parameters are literature-informed until revealed-preference data are available; the sensitivity of siting to these parameters is reported.
+* Choice-model parameters are literature-informed until revealed-preference data are available; notebook 04 reports how the siting result changes with them.
 * Grid capacity is represented by proxies (substation headroom where UKPN publishes it); a real connection study is outside scope.

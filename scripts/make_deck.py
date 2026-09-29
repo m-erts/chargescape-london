@@ -1,5 +1,5 @@
-"""Build the project slide deck (reports/ChargeScape_London.pptx) with python-pptx from
-reports/tables/key_numbers.json and reports/figures/*.png."""
+"""Offline PPTX version of the final deck (reports/ChargeScape_London.pptx), same structure as the HTML
+slides but with static figures instead of live maps. Numbers from reports/tables/key_numbers.json."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import json
 from pathlib import Path
 
 from pptx import Presentation
+from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
+from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
@@ -15,177 +17,148 @@ from pptx.util import Inches, Pt
 ROOT = Path(__file__).resolve().parents[1]
 FIG = ROOT / "reports" / "figures"
 K = json.loads((ROOT / "reports" / "tables" / "key_numbers.json").read_text())
-
-NAVY = RGBColor(0x14, 0x21, 0x3D)
-ORANGE = RGBColor(0xE4, 0x57, 0x2E)
-TEAL = RGBColor(0x0C, 0x7C, 0x70)
-INK = RGBColor(0x1A, 0x20, 0x27)
-MUTED = RGBColor(0x5B, 0x6B, 0x7A)
-PALE = RGBColor(0xEE, 0xF2, 0xF4)
-WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-HEAD = "Cambria"
-BODY = "Calibri"
-
-prs = Presentation()
-prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
-BLANK = prs.slide_layouts[6]
+NAVY, ORANGE, TEAL = RGBColor(0x14, 0x21, 0x3D), RGBColor(0xE4, 0x57, 0x2E), RGBColor(0x0C, 0x7C, 0x70)
+INK, MUTED, PALE, WHITE, SOFT = (
+    RGBColor(0x1A, 0x20, 0x27),
+    RGBColor(0x5B, 0x6B, 0x7A),
+    RGBColor(0xEE, 0xF2, 0xF4),
+    RGBColor(0xFF, 0xFF, 0xFF),
+    RGBColor(0xC8, 0xD3, 0xDC),
+)
+HEAD, BODY = "Cambria", "Calibri"
 W, H = 13.333, 7.5
+prs = Presentation()
+prs.slide_width, prs.slide_height = Inches(W), Inches(H)
+BLANK = prs.slide_layouts[6]
 
 
-def bg(slide, color):
-    fill = slide.background.fill
-    fill.solid()
-    fill.fore_color.rgb = color
+def bg(s, color):
+    s.background.fill.solid()
+    s.background.fill.fore_color.rgb = color
 
 
-def text(
-    slide,
-    x,
-    y,
-    w,
-    h,
-    s,
-    size=16,
-    bold=False,
-    color=INK,
-    font=BODY,
-    align=PP_ALIGN.LEFT,
-    italic=False,
-    line=1.15,
-):
-    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+def text(s, x, y, w, h, lines, size=16, bold=False, color=INK, font=BODY, align=PP_ALIGN.LEFT, italic=False):
+    tb = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame
     tf.word_wrap = True
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
-    lines = s if isinstance(s, list) else [s]
-    for i, ln in enumerate(lines):
+    for i, ln in enumerate(lines if isinstance(lines, list) else [lines]):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.alignment = align
-        p.line_spacing = line
+        p.line_spacing = 1.15
         r = p.add_run()
         r.text = ln
-        r.font.size = Pt(size)
-        r.font.bold = bold
-        r.font.italic = italic
-        r.font.name = font
+        r.font.size, r.font.bold, r.font.italic, r.font.name = Pt(size), bold, italic, font
         r.font.color.rgb = color
     return tb
 
 
-def bullets(slide, x, y, w, h, items, size=15, color=INK, gap=6):
-    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+def bullets(s, x, y, w, h, items, size=14):
+    tb = s.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame
     tf.word_wrap = True
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
     for i, it in enumerate(items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.space_after = Pt(gap)
+        p.space_after = Pt(7)
         r = p.add_run()
         r.text = "•  " + it
-        r.font.size = Pt(size)
-        r.font.name = BODY
-        r.font.color.rgb = color
-    return tb
+        r.font.size, r.font.name = Pt(size), BODY
+        r.font.color.rgb = INK
 
 
-def title(slide, s, sub=None, dark=False):
-    text(slide, 0.6, 0.45, W - 1.2, 0.9, s, size=30, bold=True, color=WHITE if dark else NAVY, font=HEAD)
+def title(s, t, sub=None):
+    text(s, 0.6, 0.4, W - 1.2, 0.9, t, size=28, bold=True, color=NAVY, font=HEAD)
     if sub:
-        text(
-            slide,
-            0.6,
-            1.25,
-            W - 1.2,
-            0.5,
-            sub,
-            size=14,
-            color=RGBColor(0xC8, 0xD3, 0xDC) if dark else MUTED,
-            italic=True,
-        )
+        text(s, 0.6, 1.2, W - 1.2, 0.45, sub, size=13, color=MUTED, italic=True)
 
 
-def stat(slide, x, y, w, big, label, color=ORANGE):
-    text(slide, x, y, w, 0.9, big, size=40, bold=True, color=color, font=HEAD)
-    text(slide, x, y + 0.85, w, 0.7, label, size=12, color=MUTED)
+def stat(s, x, y, w, big, label, color=ORANGE):
+    text(s, x, y, w, 0.8, big, size=34, bold=True, color=color, font=HEAD)
+    text(s, x, y + 0.78, w, 0.8, label, size=12, color=MUTED)
 
 
-def card(slide, x, y, w, h, head, body, fill=PALE):
-    shp = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
+def card(s, x, y, w, h, head, body, fill=PALE, size=12):
+    shp = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
     shp.fill.solid()
     shp.fill.fore_color.rgb = fill
     shp.line.fill.background()
-    shp.adjustments[0] = 0.06
+    shp.adjustments[0] = 0.05
     shp.shadow.inherit = False
-    text(slide, x + 0.25, y + 0.2, w - 0.5, 0.5, head, size=15, bold=True, color=NAVY)
-    text(slide, x + 0.25, y + 0.7, w - 0.5, h - 0.9, body, size=12, color=INK, line=1.2)
+    text(s, x + 0.25, y + 0.18, w - 0.5, 0.45, head, size=15, bold=True, color=NAVY)
+    text(s, x + 0.25, y + 0.65, w - 0.5, h - 0.8, body, size=size)
 
 
-def picture(slide, name, x, y, w=None, h=None):
+def picture(s, name, x, y, w=None, h=None):
     p = FIG / name
-    if not p.exists():
-        text(slide, x, y, w or 6, 1, f"[figure {name} not generated yet]", size=12, color=MUTED, italic=True)
-        return
-    kw = {}
-    if w:
-        kw["width"] = Inches(w)
-    if h:
-        kw["height"] = Inches(h)
-    slide.shapes.add_picture(str(p), Inches(x), Inches(y), **kw)
+    if p.exists():
+        s.shapes.add_picture(
+            str(p),
+            Inches(x),
+            Inches(y),
+            **({"width": Inches(w)} if w else {}),
+            **({"height": Inches(h)} if h else {}),
+        )
 
 
-def footer(slide, n, dark=False):
+def footer(s, n):
     text(
-        slide,
+        s,
         0.6,
-        H - 0.45,
-        8,
+        H - 0.42,
+        9,
         0.3,
-        "ChargeScape London · github repository · September 2026",
+        "ChargeScape London · github.com/m-erts/chargescape-london",
         size=9,
-        color=RGBColor(0xC8, 0xD3, 0xDC) if dark else MUTED,
+        color=MUTED,
     )
-    text(
-        slide,
-        W - 1.2,
-        H - 0.45,
-        0.6,
-        0.3,
-        str(n),
-        size=9,
-        color=RGBColor(0xC8, 0xD3, 0xDC) if dark else MUTED,
-        align=PP_ALIGN.RIGHT,
-    )
+    text(s, W - 1.2, H - 0.42, 0.6, 0.3, str(n), size=9, color=MUTED, align=PP_ALIGN.RIGHT)
 
 
-d26 = K["demand_gwh"]["2026"]
-d30 = K["demand_gwh"]["2030_mid"]
+d26, d30 = K["demand_gwh"]["2026"], K["demand_gwh"]["2030_mid"]
+sit = {r["budget_m"]: r for r in K.get("siting", [])}
+r20, r40 = sit.get(20.0), sit.get(40.0)
+cap = K.get("siting_meta", {}).get("hub_capacity_sessions_day", 33)
+tr = K["transfer"]
+rho = list(tr["spearman_by_city"].values())
+can = K["cannibalisation"]
+sens = K.get("sensitivity", {})
+n_rapid, n_slow = K["chargers_rapid"], K["chargers_total"] - K["chargers_rapid"]
+supply_gwh = (n_slow * 7 * 8760 * 0.47 * 0.45 + n_rapid * 60 * 8760 * 0.34 * 0.85) / 1e6
 n = 0
 
+
+def new(dark=False):
+    global n
+    n += 1
+    s = prs.slides.add_slide(BLANK)
+    bg(s, NAVY if dark else WHITE)
+    return s
+
+
 # 1 title
-s = prs.slides.add_slide(BLANK)
-bg(s, NAVY)
-n += 1
-text(s, 0.8, 1.6, 11.5, 1.6, "ChargeScape London", size=52, bold=True, color=WHITE, font=HEAD)
+s = new(True)
+text(s, 0.8, 1.5, 11.5, 1.4, "ChargeScape London", size=52, bold=True, color=WHITE, font=HEAD)
 text(
     s,
     0.8,
-    3.0,
-    11.0,
-    1.2,
+    2.9,
+    11.5,
+    1.1,
     "A spatial decision system for EV charging networks under uncertain demand",
     size=24,
-    color=RGBColor(0xC8, 0xD3, 0xDC),
+    color=SOFT,
     font=HEAD,
 )
 text(
     s,
     0.8,
-    4.4,
+    4.3,
     11.0,
-    1.4,
+    1.2,
     [
-        "Where should the next rapid-charging hubs in Greater London go, how many ports and what power —",
-        "and how sure can we be? Built end-to-end from open data, with every assumption visible.",
+        "Where should London's next rapid-charging hubs go, how big should they be, and how sure can we be?",
+        "Built end-to-end from open data, with every assumption visible.",
     ],
     size=15,
     color=WHITE,
@@ -196,75 +169,53 @@ text(
     6.3,
     11.0,
     0.5,
-    "Marija Ercegovac · urban planner turned geospatial data scientist · September 2026",
+    "Marija Ercegovac · geospatial data science · github.com/m-erts/chargescape-london",
     size=13,
-    color=RGBColor(0xC8, 0xD3, 0xDC),
+    color=SOFT,
 )
-box = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(11.3), Inches(0.6), Inches(1.4), Inches(0.5))
-box.fill.solid()
-box.fill.fore_color.rgb = ORANGE
-box.line.fill.background()
-box.adjustments[0] = 0.3
-text(s, 11.3, 0.7, 1.4, 0.4, "PORTFOLIO", size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 
-# 2 the problem
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(
-    s,
-    "Charging is an infrastructure business that lives or dies on utilisation",
-    "London facts behind the question",
-)
-stat(s, 0.8, 1.9, 2.8, f"{K['chargers_total']:,}", f"public chargers in London\n(DfT, {K['dft_date']})")
-stat(s, 3.9, 1.9, 2.8, f"{K['rapid_share']:.0%}", "of them are 50 kW+ —\nvs 24 % across the UK", color=TEAL)
-stat(
-    s,
-    7.0,
-    1.9,
-    2.8,
-    f"{(K['piv_private'] + K['piv_company']) / 1000:.0f}k",
-    "plug-in cars kept in London\n(41 % company-kept)",
-    color=NAVY,
-)
-stat(s, 10.1, 1.9, 2.8, "34 %", "occupancy of rapid units\n(TfL, observed 2025)", color=ORANGE)
+# 2 problem
+s = new()
+title(s, "Charging is an infrastructure business that lives or dies on utilisation")
+stat(s, 0.8, 1.6, 2.9, f"{K['chargers_total']:,}", f"public chargers in London (DfT, {K['dft_date']})")
+stat(s, 3.9, 1.6, 2.9, f"{100 * K['rapid_share']:.0f} %", "of them are 50 kW+; UK: 24 %", TEAL)
+stat(s, 7.0, 1.6, 2.9, "300k", "plug-in cars kept in London (DfT, Q1 2026)", NAVY)
+stat(s, 10.1, 1.6, 2.9, "34 %", "occupancy of rapid units (TfL, 2025)")
 card(
     s,
     0.8,
-    4.0,
+    3.7,
     5.9,
-    2.7,
+    2.9,
     "The economics",
-    "A hub in the wrong hex idles at 5 % and never pays back; the right one runs above 20–30 % with queues. McKinsey and ICCT put the break-even between 15 % and 20 % utilisation — payback halves between 10 % and 20 %.",
+    "A hub in the wrong hex idles at 5 % and never pays back; the right one runs above 20–30 % and queues. Industry analyses put break-even at 15–20 % utilisation; payback roughly halves between 10 % and 20 %.",
 )
 card(
     s,
     7.0,
-    4.0,
+    3.7,
     5.9,
-    2.7,
+    2.9,
     "The analytics gap",
-    "Operators describe site selection as a demand model on dozens to hundreds of factors. Public projects almost never predict usage (they predict where chargers already are), carry uncertainty into the decision, model queues and cannibalisation, or say how they would be proven wrong.",
+    "Operators describe site selection as a demand model on dozens to hundreds of factors. Public projects usually predict where chargers already are, ignore queues and cannibalisation, and never say how they could be proven wrong.",
 )
 footer(s, n)
 
-# 3 what is different
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(s, "Four things this system does that gap maps do not")
+# 3 approach
+s = new()
+title(s, "What this system does differently")
 items = [
     (
         "Labels on every dataset",
-        "observed / proxy / synthetic — 23 sources in the catalog, and the label follows the number into every table.",
+        f"observed / proxy / synthetic — {K['n_sources']} sources in the catalog; the label follows the number into every table.",
     ),
     (
         "Usage, checked against reality",
-        "Demand is modelled bottom-up, then checked against DfT charger counts × TfL occupancy and open session logs.",
+        "Demand modelled bottom-up, then checked against DfT charger counts × TfL occupancy and open session logs.",
     ),
     (
         "Uncertainty reaches the decision",
-        "P10/P50/P90 per hex; a robust MILP picks hubs that hold across scenarios; the overlap with the P50 answer says which sites are safe.",
+        "P10/P50/P90 per hex; a robust MILP picks hubs that hold across scenarios; a sensitivity run shows what moves.",
     ),
     (
         "Queues, cannibalisation, grid",
@@ -272,322 +223,370 @@ items = [
     ),
 ]
 for i, (h, b) in enumerate(items):
-    x = 0.8 + (i % 2) * 6.2
-    y = 1.9 + (i // 2) * 2.55
-    circ = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x), Inches(y), Inches(0.55), Inches(0.55))
-    circ.fill.solid()
-    circ.fill.fore_color.rgb = [ORANGE, TEAL, NAVY, ORANGE][i]
-    circ.line.fill.background()
-    text(s, x, y + 0.1, 0.55, 0.4, str(i + 1), size=16, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-    text(s, x + 0.75, y, 5.2, 0.5, h, size=18, bold=True, color=NAVY, font=HEAD)
-    text(s, x + 0.75, y + 0.55, 5.2, 1.7, b, size=13, color=INK, line=1.25)
-footer(s, n)
-
-# 4 pipeline
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(
-    s,
-    "Pipeline: open data → hex features → demand → choice & queues → siting",
-    "Reproducible on a laptop: make data · make features · make models · make maps",
-)
-steps = [
-    (
-        "Open data",
-        "DfT · ONS · OSM PBF · UKPN DFES & headroom · TfL · LAEI · Dundee/PKC/Palo Alto/Boulder sessions",
-    ),
-    (
-        "H3 res-8 features",
-        "areal interpolation of Census & EV licensing; POIs; vehicle-km; transit; substation headroom; igraph drive times",
-    ),
-    (
-        "Structural demand",
-        "EV stock × km × kWh/km × public share; 500 Monte Carlo draws; taxi/PHV layer; DFES 2030 pathways",
-    ),
-    (
-        "Choice & queues",
-        "MNL station choice on drive times; Erlang-C per site; incremental vs cannibalised demand",
-    ),
-    ("Siting", "capacitated MCLP + robust two-stage MILP (HiGHS); budget, capacity, grid filter"),
-    ("Delivery", "MapLibre maps, HTML + PPTX decks, notebooks, model card, post-hoc validation plan"),
-]
-for i, (h, b) in enumerate(steps):
+    x, y = 0.8 + (i % 2) * 6.2, 1.6 + (i // 2) * 2.0
+    c = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x), Inches(y), Inches(0.5), Inches(0.5))
+    c.fill.solid()
+    c.fill.fore_color.rgb = [ORANGE, TEAL, NAVY, ORANGE][i]
+    c.line.fill.background()
+    text(s, x, y + 0.09, 0.5, 0.35, str(i + 1), size=15, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    text(s, x + 0.7, y, 5.3, 0.45, h, size=17, bold=True, color=NAVY, font=HEAD)
+    text(s, x + 0.7, y + 0.5, 5.3, 1.3, b, size=13)
+steps = ["Open data", "H3 features", "Demand · MC", "Choice & queues", "Siting MILP", "Maps & test plan"]
+for i, st in enumerate(steps):
     x = 0.6 + i * 2.05
     shp = s.shapes.add_shape(
-        MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON, Inches(x), Inches(2.0), Inches(2.0), Inches(0.8)
+        MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON, Inches(x), Inches(5.9), Inches(2.0), Inches(0.7)
     )
     shp.fill.solid()
     shp.fill.fore_color.rgb = [NAVY, TEAL, ORANGE, TEAL, NAVY, MUTED][i]
     shp.line.fill.background()
-    text(s, x + 0.35, 2.2, 1.5, 0.5, h, size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-    text(s, x + 0.1, 3.0, 1.85, 2.6, b, size=11, color=INK, line=1.2)
-card(
-    s,
-    0.8,
-    5.6,
-    11.7,
-    1.3,
-    "Validation stance",
-    "Spatial cross-validation by default (random K-fold shown only to expose its optimism); consistency with observed aggregates; and a named observable — utilisation of hubs opened after July 2026 — that would confirm or refute each recommendation.",
-)
+    text(s, x + 0.3, 6.1, 1.5, 0.35, st, size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 footer(s, n)
 
-# 5 supply audit
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(s, "Supply follows devices; need follows cars without driveways", "Notebook 01 — all observed data")
-picture(s, "01_hex_supply_demand.png", 0.6, 1.8, h=5.0)
+# 4 data
+s = new()
+title(s, f"{K['n_sources']} open sources, each labelled observed, proxy or synthetic")
+groups = [
+    (
+        "Supply · observed",
+        "Open Charge Map (12.5k points), OpenStreetMap, National Chargepoint Registry 2021, DfT EVCI July 2026",
+    ),
+    (
+        "Where EVs live · observed",
+        "Census 2021 (4,994 LSOAs), DfT vehicle licensing by LSOA (Q1 2026), Indices of Deprivation 2025",
+    ),
+    (
+        "Activity & traffic · observed / proxy",
+        "OSM POIs (74k), LAEI 2022 road flows incl. taxi & private hire, TfL stations, NaPTAN",
+    ),
+    (
+        "Grid & future · proxy",
+        "UKPN primary-substation headroom (summer 2026); DFES 2026 EV pathways to 2030",
+    ),
+    (
+        "Behaviour elsewhere · observed",
+        "Session logs from Dundee, Perth & Kinross, Palo Alto, Boulder; Optimise Prime; Low Carbon London",
+    ),
+    (
+        "Model outputs · synthetic",
+        "Monte Carlo demand draws; literature-informed choice parameters — never presented as observed",
+    ),
+]
+for i, (h, b) in enumerate(groups):
+    card(s, 0.8 + (i % 3) * 4.1, 1.5 + (i // 3) * 1.95, 3.9, 1.8, h, b, size=11)
+stat(s, 0.8, 5.55, 3.9, f"{K['sites_total']:,}", "charging sites after de-duplication within 50 m", NAVY)
+stat(s, 4.9, 5.55, 3.9, f"{K['n_hexes']:,}", "H3 hexes at resolution 8 (0.74 km²)", TEAL)
+stat(s, 9.0, 5.55, 3.9, f"{tr['n_stations']}", "chargers with observed usage (transfer test)")
+footer(s, n)
+
+# 5 supply
+s = new()
+title(
+    s,
+    "Supply follows devices; need follows cars without driveways",
+    "Live map: m-erts.github.io/chargescape-london/maps/supply_2026.html",
+)
+picture(s, "01_hex_supply_demand.png", 0.6, 1.75, h=5.2)
 bullets(
     s,
     7.4,
     1.9,
     5.4,
-    4.8,
+    4.9,
     [
-        "Inner boroughs have ~1,400 chargers per 100k residents, mostly 5–7 kW lamp-post units; rapid share is 40 % in Havering and Hillingdon, under 4 % in Westminster and Hackney.",
-        "Private plug-in cars cluster in outer, house-rich boroughs (Barnet, Bromley, Croydon); Moran's I = 0.73 — strongly clustered.",
-        "The group that depends on public charging — EV owners in flats — forms Gi* hot spots in inner-west and inner-south London.",
-        f"On the road network, median drive time to a rapid site is {K['median_tt_nearest_rapid_min']} min: distance is rarely the binding constraint in London; capacity and queues are.",
+        "Inner boroughs: ~1,400 chargers per 100k residents, mostly 5–7 kW lamp-post units; rapid share 40 % in Havering and Hillingdon, under 4 % in Westminster and Hackney.",
+        "Private plug-in cars cluster in outer, house-rich boroughs (Moran's I = 0.73).",
+        "EV owners in flats — who depend on public charging — form Gi* hot spots in inner-west and inner-south London.",
+        f"Median drive time to a rapid site is {K['median_tt_nearest_rapid_min']} min: in London the constraint is capacity, not distance.",
     ],
     size=13,
 )
 footer(s, n)
 
 # 6 demand
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
+s = new()
 title(
     s,
     "A demand surface with the uncertainty attached",
-    "Notebook 02 — structural Monte Carlo model on observed inputs",
+    "Live map: …/maps/demand_2026.html (toggle P10 / P50 / P90 / 2030)",
 )
-picture(s, "02_demand_p50_uncertainty.png", 0.6, 1.8, w=12.1)
+picture(s, "02_demand_p50_uncertainty.png", 0.6, 1.75, w=12.1)
 stat(
     s,
     0.8,
     5.35,
-    3.0,
+    3.6,
     f"{d26['total_p50']:.0f} GWh",
-    f"public charging demand 2026, P50\n(P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f})",
+    f"public charging demand 2026, P50 (P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f})",
 )
 stat(
     s,
-    4.1,
+    4.7,
     5.35,
-    3.0,
+    3.6,
     f"{d26['phv_p50']:.0f} GWh",
-    "of it from taxi & private hire —\nLondon's rapid-charging anchor",
-    color=TEAL,
+    "from taxi & private hire — London's rapid-charging anchor",
+    TEAL,
 )
-stat(
-    s,
-    7.4,
-    5.35,
-    3.0,
-    f"{d30['total_p50']:.0f} GWh",
-    "in 2030, DFES mid pathway\n(low–high 1,100–1,410)",
-    color=NAVY,
-)
-text(
-    s,
-    10.6,
-    5.5,
-    2.3,
-    1.2,
-    "Near-home 78 · destination 55 · PHV 152 GWh. Priors and mix are documented in the model card.",
-    size=11,
-    color=MUTED,
-)
+stat(s, 8.6, 5.35, 3.9, f"{d30['total_p50']:,.0f} GWh", "in 2030, DFES mid pathway", NAVY)
 footer(s, n)
 
 # 7 calibration
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(
-    s,
-    "No London usage data is open — so the model is checked against what is observed",
-    "Notebook 02, section 2",
-)
+s = new()
+title(s, "No London usage data is open — so the model is checked against what is observed")
 card(
     s,
     0.8,
-    1.9,
+    1.6,
     5.9,
-    2.2,
-    "Supply-implied energy",
-    "28.8k slow + 2.5k rapid chargers (DfT) × TfL-observed occupancy (47 % slow, 34 % rapid) × charging-time share ⇒ ≈ 760 GWh/yr the network could be delivering.",
+    2.1,
+    "Energy the network could deliver",
+    f"{n_slow:,} slow + {n_rapid:,} rapid chargers (DfT) × TfL-observed occupancy × charging-time share ⇒ ≈ {supply_gwh:,.0f} GWh a year.",
 )
 card(
     s,
     7.0,
-    1.9,
+    1.6,
     5.9,
-    2.2,
+    2.1,
     "Modelled demand",
-    f"{d26['total_p50']:.0f} GWh P50 (P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f}); rapid-type (destination + PHV) ≈ {d26['dest_p50'] + d26['phv_p50']:.0f} GWh — the same order of magnitude as the rapid side of the supply estimate.",
+    f"{d26['total_p50']:.0f} GWh P50 (P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f}); rapid-type demand ≈ {d26['dest_p50'] + d26['phv_p50']:.0f} GWh — the same order as the rapid side of the supply estimate.",
 )
 stat(
     s,
     0.8,
-    4.5,
-    3.4,
+    4.2,
+    3.9,
     f"{K['rapid_sessions_per_charger_day']}",
-    "implied rapid sessions per charger per day",
-    color=ORANGE,
+    "rapid sessions per charger per day implied by the model",
 )
-stat(s, 4.4, 4.5, 3.4, "≈13", "what TfL's 34 % occupancy implies with 38-min sessions", color=TEAL)
-stat(s, 8.0, 4.5, 3.4, "≈3", "observed in Dundee's open session log (small city)", color=NAVY)
+stat(s, 4.9, 4.2, 3.9, "≈13", "what TfL's 34 % occupancy implies with 38-minute sessions", TEAL)
+stat(s, 9.0, 4.2, 3.9, "≈3", "observed in Dundee's open session log", NAVY)
 text(
     s,
     0.8,
-    6.3,
+    6.1,
     12.0,
-    0.6,
-    "The band is the honest statement: the two levers are the public-charging share of drivers without a driveway and the size of the electric PHV fleet — both named as the first things to calibrate once operator data exist.",
+    0.7,
+    "The band is the honest statement: the two levers are the public-charging share of drivers without a driveway and the size of the electric private-hire fleet.",
     size=12,
     color=MUTED,
     italic=True,
 )
 footer(s, n)
 
-# 8 choice & queues
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
+# 8 queues
+s = new()
 title(
     s,
     "Where the demand lands today — and where queues form at the peak hour",
-    "Notebook 03 — MNL station choice on drive times + Erlang-C queues",
+    "Live map: …/maps/rapid_network_load_2026.html",
 )
-picture(s, "03_site_load_queues.png", 0.6, 1.8, w=8.2)
+picture(s, "03_site_load_queues.png", 0.6, 1.75, w=8.3)
 stat(
     s,
-    9.2,
+    9.3,
     1.9,
     3.6,
     f"{K['sites_pwait_gt_50']} / {K['rapid_sites']}",
     "rapid sites with P(wait) > 0.5 at the peak hour",
-    color=ORANGE,
 )
-stat(s, 9.2, 3.5, 3.6, f"{K['util24_median']:.0%}", "median 24 h utilisation of a rapid site", color=TEAL)
+stat(
+    s, 9.3, 3.5, 3.6, f"{100 * K['util24_median']:.0f} %", "median 24-hour utilisation of a rapid site", TEAL
+)
 text(
     s,
-    9.2,
+    9.3,
     5.1,
     3.7,
     1.8,
-    [
-        "Supply calibrated to DfT borough counts: OSM maps ~15 % of rapid devices.",
-        "For any candidate hub the model splits captured demand into new vs cannibalised — typically 70–80 % is taken from existing sites within 20 minutes.",
-    ],
+    f"Logit station choice on OSM drive times, Erlang-C queues with 38-minute sessions; ports scaled per borough to DfT 50 kW+ totals (median ×{K['port_scale_median']:.1f}).",
     size=11,
-    color=INK,
-    line=1.2,
 )
 footer(s, n)
 
-# 9 siting
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
+# 9 cannibalisation (native chart)
+s = new()
 title(
     s,
-    "Siting new 4 × 150 kW hubs under budget, capacity, grid and demand uncertainty",
-    "Notebook 04 — capacitated MCLP + robust two-stage MILP (HiGHS)",
+    "A new hub mostly takes customers from its neighbours",
+    f"Hub at the hex with the largest unmet demand ({can['candidate']['borough']}); logit with an outside option",
 )
-picture(s, "04_selected_hubs.png", 0.6, 1.8, h=5.1)
-picture(s, "04_budget_curve.png", 7.4, 1.8, w=5.4)
-sit = K.get("siting")
-if sit:
-    r20 = next((r for r in sit if abs(r["budget_m"] - 20) < 1e-6), sit[-1])
+cd = CategoryChartData()
+cd.categories = [f"{r['power_kw']} kW × {r['ports']}" for r in can["rows"]]
+cd.add_series("new demand", [round(r["new"], 1) for r in can["rows"]])
+cd.add_series("taken from existing sites", [round(r["cannibalised"], 1) for r in can["rows"]])
+gf = s.shapes.add_chart(XL_CHART_TYPE.BAR_STACKED, Inches(0.6), Inches(1.7), Inches(7.6), Inches(4.8), cd)
+ch = gf.chart
+ch.has_title = True
+ch.chart_title.text_frame.text = "Sessions per day captured by the new hub"
+ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(13)
+ch.has_legend = True
+ch.legend.position = XL_LEGEND_POSITION.BOTTOM
+ch.legend.include_in_layout = False
+for ser, col in zip(ch.series, [TEAL, ORANGE], strict=True):
+    ser.format.fill.solid()
+    ser.format.fill.fore_color.rgb = col
+plot = ch.plots[0]
+plot.gap_width = 60
+plot.has_data_labels = True
+plot.data_labels.number_format = "0"
+plot.data_labels.number_format_is_linked = False
+plot.data_labels.position = XL_LABEL_POSITION.CENTER
+plot.data_labels.font.size = Pt(11)
+plot.data_labels.font.color.rgb = WHITE
+ch.value_axis.has_major_gridlines = True
+ch.value_axis.major_gridlines.format.line.color.rgb = RGBColor(0xDD, 0xE2, 0xE6)
+ch.value_axis.tick_labels.font.size = Pt(10)
+ch.category_axis.tick_labels.font.size = Pt(11)
+lo = min(r["cannibalisation_share"] for r in can["rows"])
+hi = max(r["cannibalisation_share"] for r in can["rows"])
+stat(s, 8.7, 2.0, 4.2, f"{100 * lo:.0f}–{100 * hi:.0f} %", "of a new hub's sessions come from existing sites")
+text(
+    s,
+    8.7,
+    3.6,
+    4.2,
+    2.6,
+    "Bigger, faster hubs capture more — and cannibalise a larger share. This is the number an investor needs next to “expected sessions”, and it is exactly what a gap map cannot show.",
+    size=13,
+)
+footer(s, n)
+
+# 10 siting
+s = new()
+title(
+    s,
+    "Siting 4 × 150 kW hubs under budget, capacity, grid and demand uncertainty",
+    "Live map: …/maps/siting_hubs.html (budgets £5–40M, P50 vs robust)",
+)
+picture(s, "04_selected_hubs.png", 0.6, 1.7, h=5.2)
+picture(s, "04_budget_curve.png", 7.4, 1.7, w=5.4)
+if r20:
+    line = f"£20M ⇒ {r20['n_hubs']} hubs serve {100 * r20['coverage_share']:.0f} % of unmet rapid demand ({r20['covered_p50']:,.0f} of {r20['total_unmet_p50']:,.0f} sessions/day)."
+    if r40:
+        line += f" £40M ⇒ {r40['n_hubs']} hubs, {100 * r40['coverage_share']:.0f} %."
+    extra = (
+        f" Across {sens['variants']} changed assumptions a median {100 * sens['same_or_adjacent_median']:.0f} % of hubs stay in the same or an adjacent hex."
+        if sens
+        else ""
+    )
     text(
         s,
         7.4,
-        5.4,
+        5.25,
         5.5,
-        1.5,
-        [
-            f"£{r20['budget_m']:.0f}M ⇒ {r20['n_hubs']} hubs serving {r20['coverage_share']:.0%} of unmet rapid demand ({r20['covered_p50']:,.0f} sessions/day of {r20['total_unmet_p50']:,.0f}).",
-            f"Robust solution overlaps with P50 on {r20.get('robust_overlap_with_p50', '-')} of {r20['n_hubs']} sites; greedy uncapacitated would claim {r20['greedy_uncapacitated_covered']:,.0f}/day — the gap is demand a hub cannot absorb at an acceptable wait.",
-        ],
+        1.8,
+        [line, f"Capacity-bound: ≈{cap:.0f} sessions/day per hub at P(wait) ≤ 15 %.{extra}"],
         size=12,
-        color=INK,
-        line=1.2,
     )
-else:
-    text(s, 7.4, 5.4, 5.5, 1.2, "[siting results pending]", size=12, color=MUTED, italic=True)
 footer(s, n)
 
-# 10 transfer test
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(
-    s,
-    "Do context features explain observed utilisation anywhere? A negative result, on purpose",
-    f"Notebook 05 — {K['transfer_stations']} chargers with open session logs in four cities",
-)
-picture(s, "05_importance.png", 0.6, 1.8, h=4.4)
-stat(s, 7.2, 1.9, 2.8, "0.70", "R² with random 5-fold CV\n(looks respectable)", color=TEAL)
-stat(s, 10.1, 1.9, 2.8, "−0.25", "R² with leave-city-out CV\n(the number that matters)", color=ORANGE)
+# 11 transfer
+s = new()
+title(s, "Do context features explain observed utilisation anywhere? A negative result, on purpose")
+picture(s, "05_importance.png", 0.6, 1.6, h=4.6)
+stat(s, 7.2, 1.7, 2.8, f"{tr['r2_random']:.2f}", "R² with random 5-fold CV", TEAL)
+stat(s, 10.1, 1.7, 2.8, f"{tr['r2_leave_city_out']:.2f}", "R² when the test city is unseen")
 bullets(
     s,
     7.2,
-    3.9,
+    3.6,
     5.7,
-    2.9,
+    3.2,
     [
-        "Charger power and the city's level dominate; OpenStreetMap context adds little that transfers.",
-        "Rankings do not transfer reliably either (Spearman −0.3 to +0.6 by city); a level-free target barely helps.",
-        "Implication: any 'geo-embedding site model' must be validated out-of-city against observed usage — this is the test to ask for.",
+        f"{tr['n_stations']} chargers with open session logs in four cities; LightGBM on OSM context, population and charger power.",
+        f"Charger power and the city's level dominate; rankings do not transfer reliably (Spearman {min(rho):.2f} to {max(rho):.2f} by city).",
+        "Any “geo-embedding site model” must be validated out-of-city against observed usage.",
     ],
     size=12,
 )
 footer(s, n)
 
-# 11 limitations & falsifiability
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
+# 12 stack
+s = new()
+title(s, "Engineering: reproducible from a clean clone")
+rows = [
+    ("Spatial", "H3 · GeoPandas · Shapely · pyproj", "hex grid for siting; areal interpolation from LSOAs"),
+    (
+        "Network",
+        "OSMnx · igraph",
+        "many-to-many drive times on a 131k-node graph in seconds, no routing server",
+    ),
+    (
+        "Statistics & ML",
+        "esda · libpysal · LightGBM · scikit-learn",
+        "Moran's I, Gi*; spatial cross-validation by default",
+    ),
+    ("Optimisation", "SciPy milp (HiGHS)", "sparse capacitated & robust MCLP; MIP gap recorded per solve"),
+    ("Choice & queues", "NumPy", "Erlang C, multinomial logit, new vs cannibalised demand — unit-tested"),
+    (
+        "Delivery",
+        "MapLibre GL JS · matplotlib · GitHub Pages",
+        "offline-capable maps, HTML slides EN/RU, this PPTX",
+    ),
+]
+tbl = s.shapes.add_table(len(rows), 3, Inches(0.8), Inches(1.5), Inches(11.8), Inches(3.9)).table
+tbl.columns[0].width, tbl.columns[1].width, tbl.columns[2].width = Inches(2.2), Inches(4.0), Inches(5.6)
+for i, (a, b, c) in enumerate(rows):
+    for j, v in enumerate((a, b, c)):
+        cell = tbl.cell(i, j)
+        cell.text = v
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = PALE if i % 2 == 0 else WHITE
+        para = cell.text_frame.paragraphs[0]
+        para.runs[0].font.size = Pt(12)
+        para.runs[0].font.name = BODY
+        para.runs[0].font.bold = j == 0
+        para.runs[0].font.color.rgb = TEAL if j == 1 else (NAVY if j == 0 else INK)
+chips = [
+    f"{K['n_tests']} tests · CI on Python 3.11 / 3.12",
+    "make models → maps → slides",
+    f"{K['n_sources']} data cards with licences",
+    "code MIT · data ODbL / OGL / CC BY",
+]
+for i, c in enumerate(chips):
+    shp = s.shapes.add_shape(
+        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8 + i * 3.0), Inches(5.9), Inches(2.85), Inches(0.55)
+    )
+    shp.fill.solid()
+    shp.fill.fore_color.rgb = NAVY
+    shp.line.fill.background()
+    shp.adjustments[0] = 0.5
+    text(s, 0.9 + i * 3.0, 6.02, 2.65, 0.35, c, size=11, color=WHITE, align=PP_ALIGN.CENTER)
+footer(s, n)
+
+# 13 limitations
+s = new()
 title(s, "Limitations — and how the whole thing would be proven wrong")
 card(
     s,
     0.8,
-    1.9,
+    1.5,
     5.9,
-    4.6,
+    5.2,
     "Known limitations",
-    "• No open London charger-level usage; behaviour from other UK cities and fleet trials.\n• OSM's hub bias and a 2021 registry snapshot: unmapped rapid devices enter as scaled ports, not positions.\n• Choice-model coefficients are literature-informed, not estimated.\n• Grid constraint stops at primary-substation headroom.\n• Area-weighted LSOA→hex interpolation; ≈1.4 % of population in dropped edge hexes.",
+    "• No open London charger-level usage; behaviour from other UK cities and fleet trials.\n• Open Charge Map covers most sites but not every port; residual gaps closed per borough against DfT totals.\n• Choice coefficients are literature-informed; notebook 04 shows what moves when they change.\n• Grid constraints stop at primary-substation headroom.\n• Area-weighted LSOA → hex interpolation; ≈1.4 % of population in dropped edge hexes.",
 )
 card(
     s,
     7.0,
-    1.9,
+    1.5,
     5.9,
-    4.6,
+    5.2,
     "The post-hoc test",
-    "DfT/Zapmap publish borough device counts quarterly; TfL publishes utilisation by charger type.\n\nHubs opened after July 2026 in hexes flagged here as high unmet demand should reach above-median utilisation within a year.\n\nIf they do not, the model card names the priors to revisit first: PHV fleet size, public share without home charging, choice radius.\n\nPredict → deploy → measure → retrain is the product; the maps are its interface.",
+    "DfT and Zapmap publish borough device counts quarterly; TfL publishes utilisation by charger type.\n\nHubs opened after July 2026 in hexes flagged here as high unmet demand should reach above-median utilisation within a year.\n\nIf not, the model card names the priors to revisit first: private-hire fleet size, public share without home charging, choice radius.\n\nPredict → deploy → measure → retrain is the product; the maps are its interface.",
     fill=RGBColor(0xE6, 0xF2, 0xF0),
 )
 footer(s, n)
 
-# 12 what an operator gets
-s = prs.slides.add_slide(BLANK)
-bg(s, WHITE)
-n += 1
-title(
-    s,
-    "What an operator or investor gets from this",
-    "The same stack applies to any city with open geodata — and improves the moment usage data are plugged in",
-)
-cards = [
+# 14 value
+s = new()
+title(s, "What an operator or investor gets — and what comes next")
+gets = [
     (
         "Ranked candidates with intervals",
-        "Every hex: expected sessions/day, P10–P90, share taken from neighbours, headroom label, drive-time catchment.",
+        "Expected sessions per day, P10–P90, share taken from neighbours, substation headroom and drive-time catchment for every hex.",
     ),
     (
         "Capacity, not just location",
@@ -598,45 +597,34 @@ cards = [
         "Which sites hold under low demand and which depend on the optimistic tail — phase the latter.",
     ),
     (
-        "A learning loop",
-        "Aggregate calibration now; revealed-preference choice parameters and per-hex uncertainty once the network reports.",
+        "Next, with operator data",
+        "Choice parameters from real routes, hour-of-day profiles, per-hex uncertainty from sessions, staggered difference-in-differences on openings.",
     ),
 ]
-for i, (h, b) in enumerate(cards):
-    card(s, 0.8 + (i % 2) * 6.2, 1.9 + (i // 2) * 2.4, 5.9, 2.2, h, b)
+for i, (h, b) in enumerate(gets):
+    card(s, 0.8 + (i % 2) * 6.2, 1.5 + (i // 2) * 2.55, 5.9, 2.3, h, b, size=13)
 footer(s, n)
 
-# 13 links
-s = prs.slides.add_slide(BLANK)
-bg(s, NAVY)
-n += 1
-text(s, 0.8, 1.4, 11.5, 1.0, "Explore it", size=40, bold=True, color=WHITE, font=HEAD)
+# 15 links
+s = new(True)
+text(s, 0.8, 1.3, 11.5, 1.0, "Explore it", size=40, bold=True, color=WHITE, font=HEAD)
 text(
     s,
     0.8,
-    2.6,
-    11.5,
+    2.5,
+    11.8,
     3.6,
     [
-        "Repository: github.com/m-erts/chargescape-london — code, 16 tests, data catalog with 23 source cards, methodology and model card",
-        "Notebooks 01–05: supply audit · demand surface · choice & queues · siting · utilisation transfer",
-        "Interactive maps (MapLibre GL, no keys): demand 2026 · rapid network load & queues · selected hubs under a £20M budget",
-        "Reproduce: pip install -e . → make data → make features → make models → make maps",
+        "Repository: github.com/m-erts/chargescape-london",
+        "Slides with live maps: m-erts.github.io/chargescape-london/slides/ (Russian: /slides/ru.html)",
+        "Maps: m-erts.github.io/chargescape-london/maps/",
+        "Notebooks 01–05: supply audit · demand · choice & queues · siting · transfer test",
+        "Reproduce: pip install -e .[all] → make models maps slides",
     ],
     size=16,
     color=WHITE,
-    line=1.4,
 )
-text(
-    s,
-    0.8,
-    6.3,
-    11.5,
-    0.5,
-    "Marija Ercegovac · mercegovacm@gmail.com",
-    size=13,
-    color=RGBColor(0xC8, 0xD3, 0xDC),
-)
+text(s, 0.8, 6.3, 11.5, 0.5, "Marija Ercegovac · github.com/m-erts", size=13, color=SOFT)
 
 out = ROOT / "reports" / "ChargeScape_London.pptx"
 prs.save(out)

@@ -2,7 +2,7 @@
 
 One row per charging station / site with *identical* OSM, road and population features for
   * four cities with open session logs (dundee, pkc, palo_alto, boulder) -> features + utilisation targets
-  * the London charging sites in data/processed/charging_sites.parquet   -> features only (targets NaN)
+  * the London charging sites in data/processed/charging_sites.small.parquet   -> features only (targets NaN)
 
 Feature groups (radii in metres, computed in a local metric CRS: EPSG:27700 UK, 26910 Palo Alto, 26913 Boulder)
   poi_<group>_{300,800}      OSM POI counts by group (food, retail, hotel, leisure, parking, fuel, office,
@@ -69,7 +69,7 @@ INTERIM_CTX = INTERIM / "context"
 OUT_PATH = PROCESSED / "station_features.small.parquet"
 REPORT_PATH = INTERIM_CTX / "context_build_report.json"
 SESSIONS_DIR = INTERIM / "sessions_open"
-LONDON_SITES = PROCESSED / "charging_sites.parquet"
+LONDON_SITES = PROCESSED / "charging_sites.small.parquet"
 LONDON_POIS = INTERIM / "osm" / "pois.parquet"
 LONDON_MAJOR_ROADS = INTERIM / "osm" / "london_major_roads.parquet"
 LONDON_RAIL = INTERIM / "transit" / "tfl_stations.parquet"

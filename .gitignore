@@ -5,11 +5,14 @@ data/external/
 data/processed/*
 !data/processed/README.md
 !data/processed/*.small.parquet
+!data/processed/tt_*.npz
+!data/processed/tt_*.npz.json
 # python
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 *.egg-info/
+src/*.egg-info/
 build/
 dist/
 .venv/

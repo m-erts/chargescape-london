@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import nbformat as nbf
@@ -16,12 +17,11 @@ import numpy as np, pandas as pd, geopandas as gpd, matplotlib.pyplot as plt
 from chargescape.utils.paths import PROCESSED, INTERIM, FIGURES, TABLES, DOCS
 from chargescape.utils.io import read_gdf
 from chargescape.viz.figures import hex_map, save, barh, boroughs
+from chargescape.utils.reference import dft_la, charging_sites
 pd.set_option("display.width", 160); pd.set_option("display.max_columns", 40)
 feats = read_gdf(PROCESSED / "hex_features_r8.small.parquet")
 print(feats.shape)"""
 
-
-import sys
 
 FORCE = "--force" in sys.argv
 
@@ -47,13 +47,13 @@ nb01 = [
 
 **Question.** How does London's public charging supply (31k chargers, only 8 % rapid) relate to where plug-in cars are kept and to housing that lacks off-street parking?
 
-**Data (all observed).** DfT EVCI statistics 1 July 2026 (borough totals, 50 kW+), OpenStreetMap 2026 charging stations (hub-biased sample), National Chargepoint Registry snapshot May 2021 (complete for its date), Census 2021, DfT vehicle licensing 2026 Q1 by LSOA, all moved to H3 resolution 8.""",
+**Data (all observed).** DfT EVCI statistics 1 July 2026 (borough totals, 50 kW+); charging sites from Open Charge Map, OpenStreetMap and the May-2021 National Chargepoint Registry snapshot, de-duplicated within 50 m (13,174 sites); Census 2021; DfT vehicle licensing 2026 Q1 by LSOA — all moved to H3 resolution 8.""",
     ),
     ("code", HEADER),
     ("md", "## 1. Official borough picture (DfT, 1 July 2026)"),
     (
         "code",
-        """dft = pd.read_parquet(INTERIM / "chargepoints" / "dft_evci_london_la.parquet")
+        """dft = dft_la()
 la = dft[(dft.geography == "local_authority") & (dft.date == dft.date.max())]
 tab = la.pivot_table(index="area_name", columns="measure", values="value").rename(columns={"EV chargers": "chargers", "50kW+ EV chargers": "rapid", "EV chargers per 100k": "chargers_per_100k", "50kW+ EV chargers per 100k": "rapid_per_100k"})
 tab["rapid_share"] = tab["rapid"] / tab["chargers"]
@@ -71,9 +71,9 @@ tab.sort_values("chargers_per_100k", ascending=False).round(2).head(10)""",
     ("md", "## 2. Hex view: chargers, private EVs and housing form"),
     (
         "code",
-        """sites = read_gdf(PROCESSED / "charging_sites.parquet")
+        """sites = charging_sites()
 fig, axes = plt.subplots(2, 2, figsize=(15, 11))
-hex_map(feats, "ports_slow", "Slow/fast (<50 kW) charge points per hex — NCR 2021 (complete for its date)", cmap="Blues", scheme="quantiles", k=6, ax=axes[0, 0], legend_label="ports")
+hex_map(feats, "ports_slow", "Slow/fast (<50 kW) charge points per hex — OCM ∪ OSM ∪ NCR 2021", cmap="Blues", scheme="quantiles", k=6, ax=axes[0, 0], legend_label="ports")
 hex_map(feats, "ports_rapid", "Rapid (≥50 kW) ports per hex — OSM 2026 ∪ NCR 2021", cmap="Oranges", scheme="fisher_jenks", k=5, ax=axes[0, 1], legend_label="ports", points=sites[sites.is_rapid], point_kw={"markersize": 4, "color": "black", "alpha": 0.6})
 hex_map(feats, "piv_private_per_1000_hh", "Private plug-in cars per 1,000 households (DfT 2026 Q1)", cmap="viridis", scheme="quantiles", k=6, ax=axes[1, 0], legend_label="PiV / 1000 hh")
 hex_map(feats, "share_flat", "Share of households living in flats (Census 2021) — proxy for no off-street parking", cmap="magma", scheme="quantiles", k=6, ax=axes[1, 1], legend_label="share")
@@ -116,7 +116,7 @@ gap.groupby("borough").agg(hexes=("h3", "size"), private_evs=("piv_private_est",
         "md",
         """## Takeaways
 * Supply follows *devices*, need follows *cars without driveways*: the densest slow networks sit in inner boroughs, the largest private EV stocks in outer, house-rich boroughs — but the group that depends most on public charging (EV owners in flats) forms distinct hot spots, mostly in inner-west and inner-south London.
-* Rapid access by drive time is already fairly dense: only a handful of top-quartile-need hexes (Wandsworth, Waltham Forest, Newham, Richmond) are more than six minutes from a rapid site. The binding constraint in London is therefore *capacity and queues* at existing sites rather than pure distance — which is what notebooks 03–04 model.
+* Rapid access by drive time is already dense: the gap table above lists the few top-quartile-need hexes that are more than six minutes' drive from a rapid site. In London the binding constraint is therefore *capacity and queues* at existing sites rather than pure distance — which is what notebooks 03–04 model.
 * Everything above is observed data; the next notebook turns it into a demand surface with explicit uncertainty.""",
     ),
 ]
@@ -167,7 +167,7 @@ The model was not fitted to London usage data (none is open), so we check its to
     ),
     (
         "code",
-        """dft = pd.read_parquet(INTERIM / "chargepoints" / "dft_evci_london_la.parquet")
+        """dft = dft_la()
 la = dft[(dft.geography == "local_authority") & (dft.date == dft.date.max())].pivot_table(index="area_name", columns="measure", values="value")
 n_rapid = la["50kW+ EV chargers"].sum(); n_slow = la["EV chargers"].sum() - n_rapid
 # occupancy != charging: assume charging happens during ~45% of occupied time on slow units (long dwell) and ~85% on rapid
@@ -214,7 +214,7 @@ nb03 = [
 
 **Question.** If drivers choose among today's rapid sites by travel time, price, power and size, where does the demand land, and where do queues form at the peak hour?
 
-**Method.** Multinomial logit allocation (`chargescape.models.choice`, literature-informed parameters) of rapid-type demand (destination + PHV, P50) from every hex to rapid sites within 20 minutes on the OSM drive network; Erlang-C M/M/c queue per site with 38-minute service (Dundee median). Supply is calibrated so that each borough's rapid ports match DfT's official 50 kW+ counts (OSM alone sees only ~15 % of them).""",
+**Method.** Multinomial logit allocation (`chargescape.models.choice`, literature-informed parameters) of rapid-type demand (destination + PHV, P50) from every hex to rapid sites within 20 minutes on the OSM drive network; Erlang-C M/M/c queue per site with 38-minute service (Dundee median). Supply: Open Charge Map ∪ OpenStreetMap ∪ NCR 2021 rapid sites, de-duplicated within 50 m; ports of mapped sites are scaled per borough so that totals match DfT's official 50 kW+ counts (the factor is stored per site).""",
     ),
     ("code", HEADER),
     (
@@ -253,32 +253,14 @@ plt.tight_layout(); save(fig, "03_hex_experience.png"); plt.show()""",
     ("md", "## 3. Incremental demand vs cannibalisation for a candidate hub"),
     (
         "code",
-        """from chargescape.models.choice import utilities, incremental_demand, choice_probabilities
-from chargescape.features.travel_time import travel_time_minutes
-from chargescape.models.allocation_pipeline import rapid_sites, KWH_PER_RAPID_SESSION
-rs = rapid_sites()
-tt, method = travel_time_minutes(feats, rs, name="hex_r8_to_rapid")
-tt = np.where(np.isfinite(tt), tt, 1e6)
-d26 = pd.read_parquet(PROCESSED / "demand_r8.small.parquet"); d26 = d26[d26.scenario == "2026"].set_index("h3").reindex(feats.h3)
-demand = (d26.dest_kwh_p50.fillna(0) + d26.phv_kwh_p50.fillna(0)).to_numpy() / KWH_PER_RAPID_SESSION / 365
-p = ChoiceParams(outside_utility=0.0)
-v = utilities(tt, rs.price.to_numpy(), rs.power_kw.to_numpy(), rs.ports.to_numpy(), None, p)
-# candidate: the hex with the largest unserved demand
-svc_i = svc.set_index("h3").reindex(feats.h3)
-cand_idx = int(np.argmax(svc_i.unserved_sessions_day.fillna(0).to_numpy() + demand * np.clip(svc_i.expected_wait_min.fillna(0).to_numpy() / 30, 0, 1)))
-cand = feats.iloc[[cand_idx]][["h3", "lat", "lon", "borough"]]
-ttc, _ = travel_time_minutes(feats, cand, name="hex_r8_to_democand", cache=False)
-ttc = np.where(np.isfinite(ttc), ttc, 1e6)
-rows = []
-for kw, ports in [(50, 2), (150, 4), (150, 8), (300, 8)]:
-    vc = utilities(ttc, np.array([79.0]), np.array([float(kw)]), np.array([float(ports)]), None, p)[:, 0]
-    r = incremental_demand(demand, v, vc, outside_utility=0.0); r.update({"power_kw": kw, "ports": ports}); rows.append(r)
-print("candidate hub in", cand.borough.iloc[0], cand.h3.iloc[0])
-pd.DataFrame(rows)[["power_kw", "ports", "captured", "new", "cannibalised", "cannibalisation_share"]].round(1)""",
+        """from chargescape.models.allocation_pipeline import candidate_increment
+inc, cand = candidate_increment()
+print(f"candidate hub: hex {cand['h3']} in {cand['borough']} (largest unmet or queue-constrained rapid demand)")
+inc.round(2)""",
     ),
     (
         "md",
-        """**Reading.** Even at the hex with the largest unmet demand, a new hub takes a substantial share of its sessions from existing sites; bigger and faster hubs capture more in total but also cannibalise more. This is the number an investor or partner needs next to the headline "expected sessions", and it is exactly what a pure gap map cannot show. Parameters are literature-informed; the sensitivity of siting to them is reported in notebook 04.""",
+        """**Reading.** Even at the hex with the largest unmet demand, most of a new hub's sessions are taken from existing sites; bigger and faster hubs capture more in total but also cannibalise a larger share. This is the number an investor or partner needs next to the headline "expected sessions", and it is exactly what a pure gap map cannot show. Choice parameters are literature-informed; notebook 04 reports how the siting result moves when they change.""",
     ),
 ]
 nb(nb03, NB / "03_choice_and_queues.ipynb")
@@ -330,6 +312,24 @@ for model, color, marker in [("p50", "#e4572e", "o"), ("robust", "#1b4965", "^")
     gpd.GeoDataFrame(pts, geometry=gpd.points_from_xy(pts.lon, pts.lat), crs=4326).to_crs(27700).plot(ax=ax, color=color, marker=marker, markersize=60, label=f"{model} ({len(pts)})", edgecolor="white")
 ax.legend(loc="lower right", frameon=False); save(fig, "04_selected_hubs.png"); plt.show()
 s20.groupby(["model", "borough"]).size().unstack(0).fillna(0).astype(int).sort_values("p50", ascending=False).head(15)""",
+    ),
+    ("md", "## Sensitivity to behavioural and service assumptions (£20M)"),
+    (
+        "code",
+        """sens = pd.read_csv(TABLES / "sensitivity_2026_budget20m.csv")
+show = sens[["variant", "unmet_sessions_day", "hub_capacity_sessions_day", "n_hubs", "coverage_share", "same_hex_as_base", "same_or_adjacent_hex"]].copy()
+fig, ax = plt.subplots(figsize=(8, 4.2))
+y = np.arange(len(show))[::-1]
+ax.barh(y, show.same_or_adjacent_hex * 100, color="#0c7c70", label="same or adjacent hex as base")
+ax.barh(y, show.same_hex_as_base * 100, color="#e4572e", label="exactly the same hex")
+ax.set_yticks(y); ax.set_yticklabels(show.variant, fontsize=8); ax.set_xlim(0, 100); ax.set_xlabel("% of selected hubs")
+ax.set_title("How much of the £20M solution survives a change of assumption", loc="left"); ax.legend(frameon=False, fontsize=8, loc="lower right"); ax.grid(axis="x", alpha=0.3)
+save(fig, "04_sensitivity.png"); plt.show()
+show.round(3)""",
+    ),
+    (
+        "md",
+        """**Reading.** Unmet demand — and hence how many hubs a budget buys and what share they cover — moves with the service level and the width of the choice set, while the *location* of the chosen hubs is far more stable once "same or adjacent hex" is used instead of an exact match. The honest summary for a planner: the corridors are robust, the exact hex is a local-survey decision, and the service standard is a business choice with a larger effect than any behavioural coefficient.""",
     ),
     (
         "md",

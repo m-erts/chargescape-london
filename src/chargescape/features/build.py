@@ -19,6 +19,7 @@ from chargescape.features.grid import WGS84, areal_interpolate, count_points_by_
 from chargescape.features.supply import dedupe_within, harmonise_chargers, supply_features
 from chargescape.utils.io import read_gdf, write_gdf
 from chargescape.utils.paths import INTERIM, PROCESSED
+from chargescape.utils.reference import write_reference_copies
 
 EXTENSIVE = [
     "population",
@@ -105,7 +106,7 @@ def supply_side(grid: gpd.GeoDataFrame) -> pd.DataFrame:
     print(
         f"  charging sites after de-duplication: {len(sites)} ({sites.source.value_counts().to_dict()}); rapid {int(sites.is_rapid.sum())}"
     )
-    write_gdf(sites, PROCESSED / "charging_sites.parquet")
+    write_reference_copies(sites)
     return supply_features(grid, sites)
 
 

@@ -1,0 +1,108 @@
+"""Project landing page for GitHub Pages (docs/index.html), numbers from key_numbers.json."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+K = json.loads((ROOT / "reports" / "tables" / "key_numbers.json").read_text())
+REPO = "https://github.com/m-erts/chargescape-london"
+NBV = "https://nbviewer.org/github/m-erts/chargescape-london/blob/main/notebooks"
+
+
+def main() -> None:
+    d = K["demand_gwh"]["2026"]
+    r20 = next((r for r in K.get("siting", []) if abs(r["budget_m"] - 20) < 1e-9), None)
+    tr = K["transfer"]
+    stats = [
+        (
+            f"{d['total_p50']:.0f} GWh",
+            f"public charging demand 2026, P50 (P10–P90 {d['total_p10']:.0f}–{d['total_p90']:.0f})",
+        ),
+        (
+            f"{K['sites_pwait_gt_50']} / {K['rapid_sites']}",
+            "rapid sites where a driver more likely than not waits at the peak hour",
+        ),
+        (
+            f"{r20['n_hubs']} hubs" if r20 else "—",
+            f"serve {100 * r20['coverage_share']:.0f} % of unmet rapid demand for £20M" if r20 else "",
+        ),
+        (
+            f"{tr['r2_leave_city_out']:.2f}",
+            f"R² when a utilisation model meets an unseen city (random CV: {tr['r2_random']:.2f})",
+        ),
+    ]
+    nbs = [
+        (
+            "01_supply_audit",
+            "Supply audit",
+            "who has chargers, who has EVs, Moran's I and Gi* hot spots, drive-time gaps",
+        ),
+        (
+            "02_demand_surface",
+            "Demand surface",
+            "structural Monte Carlo demand with P10/P50/P90, calibration, 2030",
+        ),
+        (
+            "03_choice_and_queues",
+            "Choice & queues",
+            "logit station choice, Erlang-C queues, new vs cannibalised demand",
+        ),
+        ("04_siting", "Siting", "capacitated and robust MILP, budget sweep, sensitivity"),
+        (
+            "05_utilisation_transfer",
+            "Transfer test",
+            "does a context model explain observed usage in an unseen city?",
+        ),
+    ]
+    docs = [
+        ("docs/methodology.md", "Methodology"),
+        ("docs/architecture.md", "Architecture & stack"),
+        ("docs/model_card.md", "Model card"),
+        ("docs/data_catalog/README.md", f"Data catalog ({K['n_sources']} sources)"),
+        ("docs/roadmap.md", "Roadmap"),
+    ]
+    stat_html = "".join(f'<div class="stat"><b>{a}</b><span>{b}</span></div>' for a, b in stats)
+    nb_html = "".join(f'<li><a href="{NBV}/{f}.ipynb">{t}</a> — {x}</li>' for f, t, x in nbs)
+    doc_html = " · ".join(f'<a href="{REPO}/blob/main/{p}">{t}</a>' for p, t in docs)
+    html = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChargeScape London</title>
+<meta name="description" content="A spatial decision system for EV charging networks under uncertain demand — London case study.">
+<meta property="og:title" content="ChargeScape London"><meta property="og:image" content="img/hero.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Spectral:wght@600&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{{--navy:#14213D;--orange:#E4572E;--teal:#0C7C70;--ink:#1A2027;--muted:#5B6B7A;--pale:#EEF2F4}}
+*{{box-sizing:border-box}} body{{margin:0;background:#fff;color:var(--ink);font:16px/1.6 "Golos Text","Helvetica Neue",Arial,sans-serif}}
+header{{background:var(--navy);color:#fff;padding:56px 20px 44px}} .wrap{{max-width:1040px;margin:0 auto;padding:0 20px}}
+h1{{font:600 clamp(36px,5vw,58px)/1.05 Spectral,Georgia,serif;margin:0 0 10px}} .sub{{color:#C8D3DC;font-size:clamp(17px,2vw,21px);max-width:60ch;margin:0 0 24px}}
+.btns{{display:flex;flex-wrap:wrap;gap:10px}} .btns a{{padding:9px 16px;border-radius:24px;text-decoration:none;font-weight:600;background:#fff;color:var(--navy)}} .btns a.alt{{background:transparent;color:#fff;border:1px solid #6f7d92}}
+.btns a:focus-visible{{outline:2px solid var(--orange);outline-offset:2px}}
+.hero{{width:100%;height:auto;display:block;border-radius:8px;margin:28px 0 8px;border:1px solid #e3e8ec}}
+.stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:26px 0}} .stat b{{display:block;font:600 30px/1.1 Spectral,Georgia,serif;color:var(--orange);font-variant-numeric:tabular-nums}} .stat:nth-child(2) b{{color:var(--teal)}} .stat:nth-child(3) b{{color:var(--navy)}} .stat span{{color:var(--muted);font-size:14px}}
+h2{{font:600 26px/1.2 Spectral,Georgia,serif;color:var(--navy);margin:34px 0 10px}} a{{color:#0a665c}} ul{{padding-left:1.1em}} li{{margin:6px 0}}
+footer{{color:var(--muted);font-size:14px;border-top:1px solid #e3e8ec;margin-top:40px;padding:18px 0 40px}}
+@media (max-width:760px){{.stats{{grid-template-columns:1fr 1fr}}}}
+</style></head><body>
+<header><div class="wrap"><h1>ChargeScape London</h1>
+<p class="sub">A spatial decision system for EV charging networks under uncertain demand: where London's next rapid-charging hubs should go, how big they should be, and how sure we can be.</p>
+<div class="btns"><a href="slides/">Slides</a><a href="slides/ru.html" class="alt">Слайды на русском</a><a href="maps/" class="alt">Interactive maps</a><a href="{REPO}" class="alt">GitHub repository</a></div></div></header>
+<main class="wrap">
+<img class="hero" src="img/hero.png" alt="Three maps of London: public charging demand, peak-hour queue probability at rapid sites, and the hubs selected under a £20M budget">
+<div class="stats">{stat_html}</div>
+<h2>Interactive maps</h2>
+<ul><li><a href="maps/supply_2026.html">Who has chargers, who has EVs</a> — 13k charging sites by power over EV ownership and housing</li>
+<li><a href="maps/demand_2026.html">Public charging demand</a> — P10 / P50 / P90 and 2030, 3-D hexes</li>
+<li><a href="maps/rapid_network_load_2026.html">Rapid network: access, load and queues</a></li>
+<li><a href="maps/siting_hubs.html">Where the next hubs go</a> — budgets £5–40M, P50 vs robust</li></ul>
+<h2>Notebooks</h2><ul>{nb_html}</ul>
+<h2>Documentation</h2><p>{doc_html}</p>
+<footer>Marija Ercegovac · <a href="https://github.com/m-erts">github.com/m-erts</a> · code MIT, data ODbL / OGL / CC BY (see <a href="{REPO}/blob/main/data/LICENSE-DATA.md">data licences</a>) · basemap © CARTO © OpenStreetMap contributors</footer>
+</main></body></html>"""
+    (ROOT / "docs" / "index.html").write_text(html, encoding="utf-8")
+    (ROOT / "docs" / ".nojekyll").write_text("")
+    print("wrote docs/index.html")
+
+
+if __name__ == "__main__":
+    main()

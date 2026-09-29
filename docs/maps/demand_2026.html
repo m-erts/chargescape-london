@@ -1,51 +1,79 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChargeScape London · Public charging demand, 2026</title>
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"><script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script><script src="data/hex_r8.js"></script>
+<title>ChargeScape London · Public charging demand</title>
+<link href="../vendor/maplibre-gl-4.7.1/maplibre-gl.css" rel="stylesheet"><script src="../vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script><script src="data/hex_r8.js"></script>
 <style>
-html,body{margin:0;height:100%;font:14px/1.4 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1a2027}
+html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1a2027;background:#eef0ec}
 #map{position:absolute;inset:0}
-.panel{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.94);padding:12px 14px;border-radius:8px;max-width:360px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.panel h1{font:600 16px/1.25 Georgia,'Times New Roman',serif;margin:0 0 6px}
+.panel{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:12px 14px;border-radius:8px;max-width:370px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.panel h1{font:600 16px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
 .panel p{margin:0 0 8px;color:#4b5763;font-size:12.5px}
-.panel .nav a{font-size:12px;color:#0c7c70;margin-right:10px}
-.legend{position:absolute;bottom:28px;left:12px;z-index:5;background:rgba(255,255,255,.94);padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.status{display:inline-block;font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:10px;background:#e6f2f0;color:#0a665c;margin-bottom:8px}
+.status.model{background:#fdeee8;color:#a8401f}
+.nav a{font-size:12px;color:#0c7c70;margin-right:10px}
+.legend{position:absolute;bottom:30px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+.legend.right{left:auto;right:12px;bottom:40px}
 .legend b{display:block;margin-bottom:6px}
 .lg{display:flex;align-items:center;gap:8px;margin:2px 0}
 .lg i{display:inline-block;width:16px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}
-.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.btns button{font:12px inherit;padding:4px 9px;border:1px solid #cfd6dc;border-radius:14px;background:#fff;cursor:pointer}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
+.btns button{font:12px/1 inherit;padding:5px 9px;border:1px solid #cfd6dc;border-radius:14px;background:#fff;cursor:pointer;color:#1a2027}
 .btns button.on{background:#0c7c70;color:#fff;border-color:#0c7c70}
+.btns button:focus-visible{outline:2px solid #0c7c70;outline-offset:1px}
 .maplibregl-popup-content{font-size:12.5px;line-height:1.45;padding:10px 12px}
-
+.note{position:absolute;right:12px;top:12px;z-index:6;background:#fff8e6;border:1px solid #f0d9a6;border-radius:6px;padding:6px 9px;font-size:12px;display:none}
+.nobasemap .note{display:block}
+body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
+body.embed .panel{padding:6px 8px;max-width:none}
+body.embed .panel:not(:has(button)){display:none}
+body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px}
 </style></head><body>
 <div id="map"></div>
-<div class="panel"><h1>Public charging demand, 2026</h1><p>Structural Monte Carlo model on observed inputs (EV stock, housing, traffic, POIs); height and colour = MWh per year per H3 hex. Click a hex for its interval and components.</p><div class="btns"><button data-prop="demand_p10">P10</button><button data-prop="demand_p50" class="on">P50 · 2026</button><button data-prop="demand_p90">P90</button><button data-prop="demand_2030">2030 mid</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
-<div class="legend"><b>MWh / year (P50 classes)</b><div class="lg"><i style="background:#440154"></i>< 25.9</div><div class="lg"><i style="background:#414487"></i>25.9 – 52.4</div><div class="lg"><i style="background:#2a788e"></i>52.4 – 77.2</div><div class="lg"><i style="background:#22a884"></i>77.2 – 112</div><div class="lg"><i style="background:#7ad151"></i>112 – 181</div><div class="lg"><i style="background:#fde725"></i>≥ 181</div></div>
+<div class="panel"><span class="status model">model on observed inputs</span><h1>Public charging demand</h1><p>Bottom-up Monte Carlo model: EV stock × km × kWh/km × share charged publicly (depends on off-street parking), plus destination and taxi/private-hire demand. Height and colour: MWh per year per H3 hex. P10 and P90 use the 2026 classes, so the colour shift is the uncertainty.</p><div class="btns" data-group="demand"><button data-v="demand_p10">P10</button><button data-v="demand_p50" class="on">P50 · 2026</button><button data-v="demand_p90">P90</button><button data-v="demand_2030">2030</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
+<div class="legend" data-legend="2026"><b>MWh per year (2026 classes)</b><div class="lg"><i style="background:#440154"></i>< 25.9</div><div class="lg"><i style="background:#414487"></i>25.9 – 52.4</div><div class="lg"><i style="background:#2a788e"></i>52.4 – 77.2</div><div class="lg"><i style="background:#22a884"></i>77.2 – 112</div><div class="lg"><i style="background:#7ad151"></i>112 – 181</div><div class="lg"><i style="background:#fde725"></i>≥ 181</div></div><div class="legend" data-legend="2030" style="display:none"><b>MWh per year (2030 classes)</b><div class="lg"><i style="background:#440154"></i>< 118</div><div class="lg"><i style="background:#414487"></i>118 – 253</div><div class="lg"><i style="background:#2a788e"></i>253 – 400</div><div class="lg"><i style="background:#22a884"></i>400 – 564</div><div class="lg"><i style="background:#7ad151"></i>564 – 904</div><div class="lg"><i style="background:#fde725"></i>≥ 904</div></div>
+<div class="note">Basemap unavailable — showing data layers on a plain background.</div>
 <script>
-const map = new maplibregl.Map({container:'map', style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', center:[-0.12, 51.505], zoom:9.3, pitch:0, attributionControl:true});
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
-map.addControl(new maplibregl.ScaleControl({unit:'metric'}));
-function popup(html, lngLat){ new maplibregl.Popup({closeButton:false}).setLngLat(lngLat).setHTML(html).addTo(map); }
-function layer(name){ const d = (window.CS_DATA||{})[name]; if(!d){ const b=document.createElement('div'); b.className='panel'; b.style.top='auto'; b.style.bottom='60px'; b.innerHTML='<b>Data layer '+name+' did not load.</b> Serve the folder over http (python -m http.server) or open the GitHub Pages version.'; document.body.appendChild(b); } return d || {type:'FeatureCollection',features:[]}; }
-map.on('error', e => console.error('maplibre', e && e.error ? e.error.message : e));
-map.on('load', () => {
+const EMBED = new URLSearchParams(location.search).has('embed') || window.self !== window.top;
+if (EMBED) document.body.classList.add('embed');
+const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#eef0ec'}}]};
+const map = new maplibregl.Map({container: 'map', style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
+map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
+function layer(name) {
+  const d = (window.CS_DATA || {})[name];
+  if (!d) { const b = document.createElement('div'); b.className = 'legend right'; b.style.top = '60px'; b.style.bottom = 'auto';
+    b.innerHTML = '<b>Data layer “' + name + '” did not load.</b>Open the GitHub Pages version or serve the folder: python -m http.server'; document.body.appendChild(b); }
+  return d || {type: 'FeatureCollection', features: []};
+}
+function popup(html, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '320px'}).setLngLat(lngLat).setHTML(html).addTo(map); }
+function pointer(id) { map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); }
+function buttons(group, onPick) { document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(x => x.classList.toggle('on', x === btn)); onPick(btn.dataset.v); }); }
+function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.style.display = el.dataset.legend === key ? '' : 'none'); }
+let added = false, styleReady = false, fitted = false;
+function ensureFit() { const c = map.getContainer(); if (fitted || c.clientWidth < 80 || c.clientHeight < 80) return;
+  fitted = true; map.resize(); map.fitBounds([[-0.52, 51.28], [0.34, 51.7]], {padding: EMBED ? 8 : 30, duration: 0}); }
+map.on('resize', ensureFit);
+function useFallback(reason) { if (styleReady) return; styleReady = true; console.warn('basemap unavailable (' + reason + ')'); document.body.classList.add('nobasemap'); map.setStyle(FALLBACK); }
+map.on('style.load', () => { styleReady = true; ensureFit(); if (!added) { added = true; addLayers(); } });
+map.on('error', e => { const m = e && e.error ? String(e.error.message || e.error) : String(e); console.error('maplibre:', m); if (!added) useFallback(m); });
+setTimeout(() => { if (!added) useFallback('timeout'); }, 7000);
+if (EMBED) {
+  map.keyboard.disable();
+  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'f', 'F'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
+}
 
-  map.addSource('hex', {type:'geojson', data: layer('hex_r8')});
-  const BR = [25.86, 52.42, 77.18, 111.86, 180.92], COL = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
-  function stepExpr(prop){ const e=['step',['coalesce',['get',prop],0],COL[0]]; BR.forEach((b,i)=>e.push(b,COL[i+1])); return e; }
-  map.addLayer({id:'hex-fill', type:'fill-extrusion', source:'hex', paint:{
-     'fill-extrusion-color': stepExpr('demand_p50'),
-     'fill-extrusion-height': ['*', ['coalesce',['get','demand_p50'],0], 2.5],
-     'fill-extrusion-opacity': 0.85} });
-  let cur='demand_p50';
-  document.querySelectorAll('.btns button').forEach(btn => btn.onclick = () => {
-     cur = btn.dataset.prop; document.querySelectorAll('.btns button').forEach(x=>x.classList.toggle('on', x===btn));
-     map.setPaintProperty('hex-fill','fill-extrusion-color', stepExpr(cur));
-     map.setPaintProperty('hex-fill','fill-extrusion-height', ['*',['coalesce',['get',cur],0],2.5]); });
-  map.easeTo({pitch:45, bearing:-10, duration:1500});
-  map.on('click','hex-fill', e => { const p=e.features[0].properties;
-     popup(`<b>${p.borough||''}</b><br>Demand 2026 P50: <b>${p.demand_p50}</b> MWh/yr<br>P10–P90: ${p.demand_p10} – ${p.demand_p90}<br>2030 (DFES mid): ${p.demand_2030} MWh/yr<br>Taxi/PHV share: ${p.phv_share}<br>Private EVs / 1000 hh: ${p.piv_private_per_1000_hh} · flats: ${p.share_flat}`, e.lngLat); });
-  map.on('mouseenter','hex-fill',()=>map.getCanvas().style.cursor='pointer'); map.on('mouseleave','hex-fill',()=>map.getCanvas().style.cursor='');
+const BR = {demand_p10: [25.86, 52.42, 77.18, 111.86, 180.92], demand_p50: [25.86, 52.42, 77.18, 111.86, 180.92], demand_p90: [25.86, 52.42, 77.18, 111.86, 180.92], demand_2030: [117.79, 252.63, 399.84, 564.21, 903.84]};
+const COL = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
+function stepExpr(prop) { const e = ['step', ['coalesce', ['get', prop], 0], COL[0]]; BR[prop].forEach((b, i) => e.push(b, COL[i + 1])); return e; }
+function heightExpr(prop) { return ['*', ['min', ['coalesce', ['get', prop], 0], 900], 2.2]; }
+function addLayers() {
+  map.addSource('hex', {type: 'geojson', data: layer('hex_r8')});
+  map.addLayer({id: 'hex', type: 'fill-extrusion', source: 'hex', paint: {'fill-extrusion-color': stepExpr('demand_p50'), 'fill-extrusion-height': heightExpr('demand_p50'), 'fill-extrusion-opacity': 0.88}});
+  map.easeTo({pitch: 45, bearing: -12, duration: 1400});
+  map.on('click', 'hex', e => { const p = e.features[0].properties;
+    popup(`<b>${p.borough}</b><br>Public charging demand 2026, P50: <b>${p.demand_p50}</b> MWh/yr<br>P10–P90: ${p.demand_p10} – ${p.demand_p90}<br>2030, DFES mid pathway: ${p.demand_2030} MWh/yr<br>Taxi &amp; private-hire share: ${Math.round(100 * (p.phv_share || 0))} %<br>Private EVs per 1,000 households: ${p.piv_private_per_1000_hh} · flats: ${Math.round(100 * p.share_flat)} %`, e.lngLat); });
+  pointer('hex');
+}
+buttons('demand', v => { map.setPaintProperty('hex', 'fill-extrusion-color', stepExpr(v)); map.setPaintProperty('hex', 'fill-extrusion-height', heightExpr(v)); showLegend(v === 'demand_2030' ? '2030' : '2026'); });
 
-});
 </script></body></html>

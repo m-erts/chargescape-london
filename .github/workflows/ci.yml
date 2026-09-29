@@ -1,12 +1,30 @@
 name: ci
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - run: pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: PYTHONPATH=src pytest -q
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: |
+          ruff check src tests scripts
+          ruff format --check src tests scripts
+      - name: Tests
+        run: PYTHONPATH=src pytest -q
+      - name: Smoke-run the models on the committed tables
+        run: |
+          PYTHONPATH=src python -m chargescape.models.demand_pipeline --res 8 --draws 100
+          PYTHONPATH=src python -m chargescape.models.allocation_pipeline --scenario 2026
+          git checkout -- data/processed

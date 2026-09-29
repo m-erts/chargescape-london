@@ -29,6 +29,8 @@ HUB_COST_GBP = 4 * 60_000 + 150_000  # 4 × 150 kW units + civils/grid connectio
 SERVICE_MIN = 38.0
 RADIUS_MIN = 8.0  # a hub "serves" a hex if it is within 8 minutes' drive
 KWH_PER_SESSION = 17.0
+TIME_LIMIT = 300.0  # seconds per MILP
+MIP_GAP = 0.01  # stop when proven within 1 % of optimal
 
 
 def hub_capacity_sessions_day(
@@ -124,7 +126,9 @@ def run(
     sel_frames = []
     for b in budgets_m:
         budget = b * 1e6
-        r = capacitated_mclp(scen["p50"], tt, RADIUS_MIN, cost, capacity, budget, time_limit=60, mip_gap=0.01)
+        r = capacitated_mclp(
+            scen["p50"], tt, RADIUS_MIN, cost, capacity, budget, time_limit=TIME_LIMIT, mip_gap=MIP_GAP
+        )
         p_equiv = int(budget // HUB_COST_GBP)
         g = greedy_mclp(scen["p50"], tt, RADIUS_MIN, p_equiv)
         greedy_cov = coverage_of(scen["p50"], tt, RADIUS_MIN, g)
@@ -136,6 +140,7 @@ def run(
             "coverage_share": r.coverage_share,
             "greedy_uncapacitated_covered": greedy_cov,
             "status": r.status,
+            "mip_gap": r.gap,
         }
         for j in r.selected:
             sel_frames.append(
@@ -157,14 +162,15 @@ def run(
                 cost,
                 capacity,
                 budget,
-                time_limit=120,
-                mip_gap=0.01,
+                time_limit=TIME_LIMIT,
+                mip_gap=MIP_GAP,
             )
             row.update(
                 {
                     "robust_n_hubs": len(rr.selected),
                     "robust_overlap_with_p50": len(set(rr.selected) & set(r.selected)),
                     "robust_status": rr.status,
+                    "robust_mip_gap": rr.gap,
                 }
             )
             for j in rr.selected:

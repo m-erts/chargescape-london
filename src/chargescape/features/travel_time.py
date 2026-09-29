@@ -8,6 +8,7 @@ state which one was used.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -39,6 +40,14 @@ def load_road_graph():
     return _GRAPH_CACHE["rg"]
 
 
+def _signature(o_lat, o_lon, t_lat, t_lon, method: str) -> str:
+    """Hash of origin/target coordinates (5 dp) and method, so a cache is reused only for the same inputs."""
+    h = hashlib.sha1(method.encode())
+    for a in (o_lat, o_lon, t_lat, t_lon):
+        h.update(np.round(np.asarray(a, float), 5).tobytes())
+    return h.hexdigest()[:16]
+
+
 def travel_time_minutes(
     origins: gpd.GeoDataFrame,
     targets: gpd.GeoDataFrame,
@@ -47,20 +56,20 @@ def travel_time_minutes(
     cache: bool = True,
 ) -> tuple[np.ndarray, str]:
     """Return (matrix in minutes of shape (origins, targets), method). Origins/targets need lat/lon columns
-    or point geometries in WGS84."""
-    cache_path = PROCESSED / f"tt_{name}.npz"
-    if cache and cache_path.exists():
-        z = np.load(cache_path, allow_pickle=False)
-        meta = (
-            json.loads(Path(str(cache_path) + ".json").read_text())
-            if Path(str(cache_path) + ".json").exists()
-            else {"method": "unknown"}
-        )
-        if z["tt"].shape == (len(origins), len(targets)):
-            return z["tt"], meta["method"]
+    or point geometries in WGS84. Results are cached in data/processed/tt_{name}.npz together with a
+    signature of the inputs; a cache is reused only when the signature matches (so committed caches
+    let the models run from a fresh clone without the road graph)."""
     o_lat, o_lon = _latlon(origins)
     t_lat, t_lon = _latlon(targets)
-    if GRAPH_PATH.exists() and not force_approx:
+    cache_path = PROCESSED / f"tt_{name}.npz"
+    meta_path = Path(str(cache_path) + ".json")
+    use_graph = GRAPH_PATH.exists() and not force_approx
+    if cache and cache_path.exists() and meta_path.exists():
+        meta = json.loads(meta_path.read_text())
+        sigs = {_signature(o_lat, o_lon, t_lat, t_lon, m) for m in ("osm_igraph", "approx_haversine_22kmh")}
+        if meta.get("sig") in sigs and (meta.get("method") == "osm_igraph" or not use_graph):
+            return np.load(cache_path, allow_pickle=False)["tt"], meta["method"]
+    if use_graph:
         rg = load_road_graph()
         src = rg.nearest_vertices(o_lon, o_lat)
         dst = rg.nearest_vertices(t_lon, t_lat)
@@ -73,7 +82,15 @@ def travel_time_minutes(
         method = "approx_haversine_22kmh"
     if cache:
         np.savez_compressed(cache_path, tt=tt)
-        Path(str(cache_path) + ".json").write_text(json.dumps({"method": method, "shape": list(tt.shape)}))
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "method": method,
+                    "shape": list(tt.shape),
+                    "sig": _signature(o_lat, o_lon, t_lat, t_lon, method),
+                }
+            )
+        )
     return tt, method
 
 

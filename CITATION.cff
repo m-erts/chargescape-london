@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+title: "ChargeScape London: a spatial decision system for EV charging networks under uncertain demand"
+authors:
+  - family-names: Ercegovac
+    given-names: Marija
+version: 1.0.0
+date-released: 2026-09-29
+license: MIT
+repository-code: "https://github.com/m-erts/chargescape-london"
+url: "https://m-erts.github.io/chargescape-london/"
+keywords:
+  - ev-charging
+  - geospatial
+  - facility-location
+  - operations-research
+  - h3
+  - london
