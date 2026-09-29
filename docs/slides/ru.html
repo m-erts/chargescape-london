@@ -1,0 +1,150 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChargeScape London — презентация</title><meta name="description" content="Система поддержки решений для сети зарядных станций в Лондоне: спрос с неопределённостью, выбор станции и очереди, оптимизация размещения.">
+<meta property="og:title" content="ChargeScape London"><meta property="og:description" content="Система поддержки решений для сети зарядных станций в Лондоне: спрос с неопределённостью, выбор станции и очереди, оптимизация размещения."><meta property="og:url" content="https://m-erts.github.io/chargescape-london/slides/">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#14213D;--orange:#E4572E;--teal:#0C7C70;--ink:#1A2027;--muted:#5B6B7A;--pale:#EEF2F4;--line:#D9DEE3;--bg:#FFFFFF}
+*{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Golos Text","Helvetica Neue",Arial,sans-serif;font-size:clamp(14px,1.2vw,19px);line-height:1.45}
+a{color:var(--teal)} .deck{height:100vh;overflow:hidden;position:relative}
+.slide{position:absolute;inset:0;padding:5vh 5vw 7vh;display:none;flex-direction:column;overflow:hidden}
+.slide.active{display:flex;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.slide.dark{background:var(--navy);color:#fff} .slide.dark a{color:#9FD8CF}
+h1{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(38px,6vw,84px);line-height:1.05;margin:.1em 0 .2em;text-wrap:balance}
+h1.h1s{font-size:clamp(34px,5vw,64px)}
+h2{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(22px,2.4vw,38px);line-height:1.15;margin:0 0 .6em;color:var(--navy);text-wrap:balance}
+h3{margin:0 0 .4em;font-size:1.02em;color:var(--navy)}
+.kicker{font-family:"JetBrains Mono",monospace;font-size:.8em;letter-spacing:.08em;text-transform:uppercase;color:#C8D3DC}
+.title-wrap{max-width:62ch;margin:auto 0} .sub{font-family:Spectral,Georgia,serif;font-size:clamp(18px,2.1vw,30px);color:#C8D3DC;margin:0 0 .8em} .lede{font-size:1.05em;max-width:60ch} .byline{color:#C8D3DC;font-size:.9em;margin-top:2em}
+.lead{color:var(--muted);margin:-.3em 0 1.2em;max-width:80ch}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:2vw;margin:0 0 3vh} .stats.three{grid-template-columns:repeat(3,1fr);margin-top:2vh} .two-stats{grid-template-columns:1fr 1fr;margin-bottom:1.5vh}
+.stat .big{font-family:Spectral,Georgia,serif;font-weight:600;font-size:clamp(26px,3.4vw,52px);line-height:1;color:var(--orange);font-variant-numeric:tabular-nums} .stat.teal .big{color:var(--teal)} .stat.navy .big{color:var(--navy)} .stat .lbl{color:var(--muted);font-size:.85em;margin-top:.35em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:2vw} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2vh 2vw}
+.card{background:var(--pale);border-radius:10px;padding:1.1em 1.3em} .card.teal{background:#E6F2F0} .card p{margin:0 0 .5em} .card ul{margin:0;padding-left:1.1em} .card li{margin:.3em 0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6vh 1.6vw}
+.src{border:1px solid var(--line);border-radius:10px;padding:.8em 1em} .src h3{margin:.3em 0 .25em} .src p{margin:0;font-size:.88em;color:var(--muted)}
+.lab{display:inline-block;font:500 .7em/1 "JetBrains Mono",monospace;letter-spacing:.05em;text-transform:uppercase;padding:.35em .6em;border-radius:1em;background:#E6F2F0;color:#0A665C}
+.lab.proxy{background:#FFF3DA;color:#8A5A00} .lab.synthetic{background:#FDEEE8;color:#A8401F}
+ol.four{counter-reset:n;list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:1.4vh 2vw;margin:0 0 3vh} ol.four li{position:relative;padding-left:2.6em} ol.four li::before{counter-increment:n;content:counter(n);position:absolute;left:0;top:0;width:1.9em;height:1.9em;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-weight:600} ol.four li:nth-child(1)::before,ol.four li:nth-child(4)::before{background:var(--orange)} ol.four li:nth-child(3)::before{background:var(--navy)}
+.flow{display:flex;gap:.6vw;margin-top:auto} .flow span{flex:1;background:var(--navy);color:#fff;padding:.65em .4em;text-align:center;font-size:.85em;clip-path:polygon(0 0,92% 0,100% 50%,92% 100%,0 100%,8% 50%)} .flow span:first-child{clip-path:polygon(0 0,92% 0,100% 50%,92% 100%,0 100%)} .flow span:nth-child(2n){background:var(--teal)} .flow span:nth-child(3){background:var(--orange)}
+.two{display:grid;grid-template-columns:1.2fr 1fr;gap:2.5vw;align-items:start;min-height:0} .two img{width:100%;height:auto;max-height:68vh;object-fit:contain;border-radius:6px} .two ul{margin:0;padding-left:1.1em} .two li{margin:.5em 0}
+.mapwrap{display:grid;grid-template-columns:1.65fr 1fr;gap:2vw;flex:1;min-height:0} .mapwrap iframe{width:100%;height:100%;min-height:52vh;border:0;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.15);background:#eef0ec} .mapwrap aside .stat{margin-bottom:2.2vh} .mapwrap aside ul{margin:0;padding-left:1.1em} .mapwrap aside li{margin:.55em 0} .mapwrap aside img.small{width:100%;border-radius:6px;margin-bottom:1vh}
+.note{color:var(--muted);font-size:.9em} .tag{font-family:"JetBrains Mono",monospace;font-size:.42em;vertical-align:middle;background:var(--teal);color:#fff;padding:.25em .65em;border-radius:1em;margin-left:.4em;white-space:nowrap}
+.bars{display:flex;flex-direction:column;gap:1.6vh;padding-top:1vh} .bar{display:grid;grid-template-columns:7.5em 1fr;align-items:center;gap:1em} .bl{font:500 .9em "JetBrains Mono",monospace;color:var(--navy)}
+.track{display:flex;height:2.3em;background:var(--pale);border-radius:6px;overflow:hidden} .track i{display:flex;align-items:center;justify-content:flex-end;padding:0 .5em;font-style:normal;font-size:.8em;color:#fff;white-space:nowrap;font-variant-numeric:tabular-nums} .track i.new{background:var(--teal)} .track i.can{background:var(--orange)}
+.blegend{font-size:.82em;color:var(--muted);margin-top:.6vh} .blegend i{display:inline-block;width:.9em;height:.9em;border-radius:2px;vertical-align:-.1em;margin:0 .3em 0 .8em} .blegend i.new{background:var(--teal);margin-left:0} .blegend i.can{background:var(--orange)}
+table.stack{border-collapse:collapse;width:100%;font-size:.95em} .stack th,.stack td{text-align:left;padding:.7em .9em;border-bottom:1px solid var(--line);vertical-align:top} .stack th{color:var(--navy);width:14%;font-weight:600} .stack td.mono{font-family:"JetBrains Mono",monospace;font-size:.85em;width:30%;color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:.6em;margin-top:auto} .chips span{background:var(--navy);color:#fff;border-radius:2em;padding:.45em .9em;font-size:.85em}
+ul.links{font-size:1.05em;line-height:1.6;padding-left:1.1em} code{font-family:"JetBrains Mono",monospace;font-size:.88em;background:rgba(255,255,255,.12);padding:.1em .4em;border-radius:4px}
+.nav{position:fixed;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:9} .nav button{width:10px;height:10px;border-radius:50%;background:#B8C2CC;border:0;padding:0;cursor:pointer} .nav button.on{background:var(--orange)} .nav button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.counter{position:fixed;bottom:12px;right:18px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);z-index:9}
+.top{position:fixed;top:12px;right:18px;font-size:12px;color:var(--muted);z-index:9;display:flex;gap:1em} .top a{color:var(--muted)} .dark-on .top,.dark-on .top a,.dark-on .counter{color:#C8D3DC}
+@media (max-width:900px){.stats,.cols,.two,.mapwrap,ol.four,.grid3,.grid2{grid-template-columns:1fr} .mapwrap iframe{min-height:45vh} .slide{overflow:auto}}
+@media (prefers-reduced-motion:reduce){.slide.active{animation:none}}
+@media print{.deck{height:auto;overflow:visible} .slide{display:flex!important;position:relative;height:100vh;page-break-after:always} .nav,.counter,.top{display:none}}
+</style></head><body>
+<div class="deck"><section class="slide dark">
+<div class="title-wrap">
+  <div class="kicker">Портфолио-проект · сентябрь 2026</div>
+  <h1>ChargeScape London</h1>
+  <p class="sub">Система поддержки решений для сети зарядных станций в условиях неопределённого спроса</p>
+  <p class="lede">Где в Лондоне ставить следующие быстрые зарядные хабы, какого они должны быть размера и насколько мы в этом уверены? Сквозной проект на открытых данных, в котором видно каждое допущение.</p>
+  <p class="byline">Marija Ercegovac · геоаналитика и data science · <a href="https://github.com/m-erts/chargescape-london">github.com/m-erts/chargescape-london</a></p>
+</div></section><section class="slide ">
+<h2>Зарядная инфраструктура — бизнес, который живёт загрузкой</h2>
+<div class="stats">
+  <div class="stat orange"><div class="big">31 371</div><div class="lbl">публичные зарядки в Лондоне (DfT, 1 июля 2026)</div></div>
+  <div class="stat teal"><div class="big">8 %</div><div class="lbl">из них мощностью 50 кВт+; по Великобритании — 24 %</div></div>
+  <div class="stat navy"><div class="big">300 тыс.</div><div class="lbl">подключаемые автомобили в Лондоне (DfT, I кв. 2026)</div></div>
+  <div class="stat orange"><div class="big">34 %</div><div class="lbl">занятость быстрых зарядок (TfL, 2025)</div></div>
+</div>
+<div class="cols">
+  <div class="card "><h3>Экономика</h3><p>Хаб в неудачном гексе простаивает на 5 % и не окупается; удачный работает на 20–30 % и собирает очереди. По отраслевым оценкам безубыточность наступает при 15–20 % загрузки, а срок окупаемости сокращается примерно вдвое при росте загрузки с 10 до 20 %.</p></div>
+  <div class="card "><h3>Пробел в аналитике</h3><p>Операторы описывают выбор площадок как модель спроса на десятках и сотнях факторов. Публичные проекты обычно предсказывают, где зарядки уже стоят, не учитывают очереди и каннибализацию и не говорят, как их можно опровергнуть.</p></div>
+</div></section><section class="slide ">
+<h2>Чем эта система отличается</h2>
+<ol class="four"><li><b>Метка у каждого набора данных.</b> observed / proxy / synthetic — 32 набора данных в каталоге, и метка сопровождает число во всех таблицах.</li><li><b>Спрос сверяется с реальностью.</b> Спрос моделируется снизу вверх и проверяется по числу зарядок DfT × наблюдаемой занятости TfL и по открытым журналам сессий.</li><li><b>Неопределённость доходит до решения.</b> P10/P50/P90 для каждого гекса; план решается под каждый сценарий спроса и проверяется на остальных; анализ чувствительности показывает, что меняется.</li><li><b>Очереди, каннибализация, сеть.</b> Ёмкость хаба по Эрлангу C, новый и отобранный у соседей спрос для любого кандидата, резерв первичных подстанций как фильтр.</li></ol>
+<div class="flow"><span>Открытые данные</span><span>Признаки H3</span><span>Спрос · Монте-Карло</span><span>Выбор и очереди</span><span>MILP-размещение</span><span>Карты и проверка</span></div></section><section class="slide ">
+<h2>32 открытых набора данных — у каждого метка observed, proxy или synthetic</h2>
+<div class="grid3"><div class="src"><div class="lab observed">observed</div><h3>Предложение</h3><p>Open Charge Map (12,5 тыс. точек), OpenStreetMap, национальный реестр зарядок 2021, DfT EVCI июль 2026</p></div><div class="src"><div class="lab observed">observed</div><h3>Где живут электромобили</h3><p>Перепись 2021 (4 994 LSOA), регистрации DfT по LSOA (I кв. 2026), индекс депривации 2025</p></div><div class="src"><div class="lab observed">observed · proxy</div><h3>Активность и трафик</h3><p>POI из OSM (74 тыс.), потоки LAEI 2022 с такси и private hire, станции TfL, остановки NaPTAN</p></div><div class="src"><div class="lab proxy">proxy</div><h3>Сеть и будущее</h3><p>Резерв первичных подстанций UKPN (лето 2026); сценарии DFES 2026 до 2030 г.</p></div><div class="src"><div class="lab observed">observed</div><h3>Поведение в других городах</h3><p>Журналы сессий Данди, Перт-энд-Кинросс, Пало-Альто, Боулдер; Optimise Prime; Low Carbon London</p></div><div class="src"><div class="lab synthetic">synthetic</div><h3>Выходы моделей</h3><p>Розыгрыши Монте-Карло; параметры выбора из литературы — никогда не выдаются за наблюдения</p></div></div>
+<div class="stats three">
+ <div class="stat navy"><div class="big">13 174</div><div class="lbl">зарядные площадки после дедупликации OCM, OSM и реестра 2021 в радиусе 50 м</div></div>
+ <div class="stat teal"><div class="big">2 374</div><div class="lbl">гексы H3 разрешения 8 (0,74 км²) на весь Большой Лондон</div></div>
+ <div class="stat orange"><div class="big">204</div><div class="lbl">зарядки с наблюдаемой загрузкой для проверки переноса</div></div>
+</div></section><section class="slide ">
+<h2>Предложение следует за устройствами, потребность — за машинами без парковки <span class="tag">живая карта</span></h2>
+<div class="mapwrap"><iframe src="../maps/supply_2026.html?embed" loading="lazy" title="supply"></iframe>
+<aside><ul><li>Во внутренних боро около 1 400 зарядок на 100 тыс. жителей, в основном фонарные 5–7 кВт; доля быстрых — 40 % в Хаверинге и Хиллингдоне, меньше 4 % в Вестминстере и Хакни.</li><li>Частные подключаемые машины сосредоточены во внешних боро с частными домами (I Морана = 0,73).</li><li>Владельцы электромобилей в квартирах — те, кто зависит от публичной зарядки, — образуют горячие точки Gi* на внутреннем западе и юге.</li><li>Медианное время в пути до быстрой зарядки — 2,2 мин: в Лондоне ограничение — ёмкость, а не расстояние.</li></ul></aside></div></section><section class="slide ">
+<h2>Поверхность спроса вместе с неопределённостью <span class="tag">живая карта</span></h2>
+<div class="mapwrap"><iframe src="../maps/demand_2026.html?embed" loading="lazy" title="demand"></iframe>
+<aside>
+ <div class="stat orange"><div class="big">285 ГВт·ч</div><div class="lbl">спрос на публичную зарядку в 2026 г., P50 (P10–P90 216–361)</div></div>
+ <div class="stat teal"><div class="big">152 ГВт·ч</div><div class="lbl">приходится на такси и private hire — якорь быстрой зарядки в Лондоне</div></div>
+ <div class="stat navy"><div class="big">1 350 ГВт·ч</div><div class="lbl">в 2030 г. по среднему сценарию DFES (1 104–1 407 по сценариям)</div></div>
+ <p class="note">Модель снизу вверх с Монте-Карло: парк EV × пробег × кВт·ч/км × доля публичной зарядки (зависит от парковки у дома) плюс спрос в местах назначения и у такси. Переключайте P10 / P50 / P90 / 2030 на карте.</p>
+</aside></div></section><section class="slide ">
+<h2>Открытых данных об использовании лондонских зарядок нет — поэтому модель сверяется с наблюдаемым</h2>
+<div class="cols">
+ <div class="card "><h3>Энергия, которую может отдать сеть</h3><p>28 838 медленных + 2 533 быстрых зарядок (DfT) × наблюдаемая занятость TfL × доля времени зарядки ⇒ ≈ 759 ГВт·ч в год.</p></div>
+ <div class="card "><h3>Смоделированный спрос</h3><p>285 ГВт·ч P50 (P10–P90 216–361); спрос быстрого типа (места назначения + PHV) ≈ 207 ГВт·ч — тот же порядок, что и быстрая часть оценки предложения.</p></div>
+</div>
+<div class="stats three">
+ <div class="stat orange"><div class="big">13,1</div><div class="lbl">сессии в сутки на одну быструю зарядку по модели</div></div>
+ <div class="stat teal"><div class="big">≈13</div><div class="lbl">что даёт занятость TfL 34 % при сессии 38 минут</div></div>
+ <div class="stat navy"><div class="big">≈3</div><div class="lbl">наблюдается в открытом журнале сессий Данди (небольшой город)</div></div>
+</div>
+<p class="note">Широкий интервал — честное утверждение: главные рычаги — доля публичной зарядки у водителей без парковки и размер парка электрических private hire.</p></section><section class="slide ">
+<h2>Куда спрос приходит сегодня — и где в пиковый час образуются очереди <span class="tag">живая карта</span></h2>
+<div class="mapwrap"><iframe src="../maps/rapid_network_load_2026.html?embed" loading="lazy" title="network"></iframe>
+<aside>
+ <div class="stat orange"><div class="big">348 / 632</div><div class="lbl">быстрые площадки с P(ожидания) > 0,5 в пиковый час</div></div>
+ <div class="stat teal"><div class="big">15 %</div><div class="lbl">медианная суточная загрузка быстрой площадки</div></div>
+ <p class="note">Мультиномиальный логит выбора станции по времени в пути на графе OSM (igraph) и очереди Эрланга C с сессией 38 минут. Порты площадок откалиброваны по официальным итогам DfT для 50 кВт+ в каждом боро (медианный коэффициент ×1,6).</p>
+</aside></div></section><section class="slide ">
+<h2>Новый хаб в основном забирает клиентов у соседей</h2>
+<p class="lead">Хаб в гексе с наибольшим неудовлетворённым спросом (Hillingdon); мультиномиальный логит с внешней альтернативой: «новый» спрос — тот, что иначе не пришёл бы на быструю зарядку.</p>
+<div class="two"><div class="bars"><div class="bar"><span class="bl">50 кВт × 2</span><span class="track"><i class="new" style="width:10.2%">16</i><i class="can" style="width:18.0%">28 · 64 %</i></span></div><div class="bar"><span class="bl">150 кВт × 4</span><span class="track"><i class="new" style="width:17.8%">28</i><i class="can" style="width:41.7%">66 · 70 %</i></span></div><div class="bar"><span class="bl">150 кВт × 8</span><span class="track"><i class="new" style="width:20.0%">32</i><i class="can" style="width:50.8%">80 · 72 %</i></span></div><div class="bar"><span class="bl">300 кВт × 8</span><span class="track"><i class="new" style="width:25.0%">39</i><i class="can" style="width:75.0%">118 · 75 %</i></span></div><div class="blegend"><i class="new"></i>новый спрос <i class="can"></i>отобран у соседей · сессий в сутки</div></div>
+<div><div class="stat orange"><div class="big">64–75 %</div><div class="lbl">сессий нового хаба приходят с существующих площадок</div></div>
+<p>Более крупные и мощные хабы захватывают больше — и больше отбирают у соседей. Это число инвестору нужно рядом с «ожидаемыми сессиями», и именно его не покажет карта пробелов.</p></div></div></section><section class="slide ">
+<h2>Размещение хабов 4 × 150 кВт с учётом бюджета, ёмкости, сети и неопределённости спроса <span class="tag">живая карта</span></h2>
+<div class="mapwrap"><iframe src="../maps/siting_hubs.html?embed" loading="lazy" title="siting"></iframe>
+<aside>
+ <img src="img/04_budget_curve.png" alt="budget curve" class="small">
+ <p><b>£20 млн ⇒ 51 хаб; они закрывают 63 % неудовлетворённого спроса (1 699 из 2 686 сессий в сутки). £40 млн ⇒ 98 хабов, 86 %.</b></p>
+ <p class="note">Режим ограничен ёмкостью: хаб принимает ≈33 сессии в сутки при P(ожидания) ≤ 15 %, поэтому покрытие растёт почти линейно с бюджетом; жадное решение без учёта ёмкости завышает его до 4,7 раза при малых бюджетах. При неопределённом спросе лучший по минимаксу сожаления — план под спрос P10 (сожаление 0 сессий в сутки при £20 млн): хабы там, где плотен даже низкий спрос, заполняются в любом сценарии. Устойчивое ядро: 22 из 51. При 9 изменённых допущениях в медиане 75 % хабов остаются в том же или соседнем гексе.</p>
+</aside></div></section><section class="slide ">
+<h2>Объясняют ли признаки окружения наблюдаемую загрузку? Отрицательный результат — намеренно</h2>
+<div class="two"><img src="img/05_importance.png" alt="feature importance">
+<div>
+ <div class="stats two-stats"><div class="stat teal"><div class="big">0,70</div><div class="lbl">R² при случайной 5-кратной кросс-валидации — выглядит прилично</div></div><div class="stat orange"><div class="big">-0,25</div><div class="lbl">R² на городе, которого не было в обучении, — важное число</div></div></div>
+ <ul><li>204 зарядки с открытыми журналами сессий в четырёх городах; LightGBM на признаках OSM, населении и мощности зарядки.</li><li>Доминируют мощность зарядки и общий уровень города; ранжирование между городами не переносится (Спирмен от -0,34 до 0,64).</li><li>Любую «модель локаций на геоэмбеддингах» нужно проверять на городе вне обучения и на наблюдаемой загрузке — это тот тест, который стоит требовать.</li></ul>
+</div></div></section><section class="slide ">
+<h2>Инженерия: воспроизводится с чистого клона</h2>
+<table class="stack"><tr><th>Пространство</th><td class='mono'>H3 · GeoPandas · Shapely · pyproj</td><td>гексагональная сетка для размещения; площадная интерполяция из LSOA</td></tr><tr><th>Сеть дорог</th><td class='mono'>OSMnx · igraph</td><td>время в пути «многие ко многим» на графе из 131 тыс. узлов за секунды, без сервера маршрутизации</td></tr><tr><th>Статистика и ML</th><td class='mono'>esda · libpysal · LightGBM · scikit-learn</td><td>I Морана, Gi*; пространственная кросс-валидация по умолчанию</td></tr><tr><th>Оптимизация</th><td class='mono'>SciPy milp (HiGHS)</td><td>разреженная MCLP с ёмкостью и точные LP для фиксированных планов; связующие ограничения превратили таймаут 20 с в оптимум за 5 с; зазор MIP записан для каждого решения</td></tr><tr><th>Выбор и очереди</th><td class='mono'>NumPy</td><td>Эрланг C, мультиномиальный логит, новый и отобранный спрос — тесты против аналитических формул</td></tr><tr><th>Подача</th><td class='mono'>MapLibre GL JS · matplotlib · GitHub Pages</td><td>карты, работающие и без интернета; эта презентация</td></tr></table>
+<div class="chips"><span>22 теста · CI на Python 3.11 / 3.12</span><span>запускается с чистого клона: make models → maps → slides</span><span>32 карточки данных с лицензиями</span><span>код MIT · данные ODbL / OGL / CC BY</span></div></section><section class="slide ">
+<h2>Ограничения — и как всю систему можно опровергнуть</h2>
+<div class="cols">
+ <div class="card "><h3>Известные ограничения</h3><ul><li>Открытых данных об использовании лондонских зарядок нет; поведение взято из других городов Великобритании и испытаний автопарков.</li><li>Open Charge Map покрывает большинство площадок, но не все порты; остаток закрывается калибровкой по итогам DfT для каждого боро.</li><li>Коэффициенты модели выбора взяты из литературы, а не оценены; ноутбук 04 показывает, что меняется при их изменении.</li><li>Ограничения сети учтены только на уровне первичных подстанций.</li><li>Площадная интерполяция LSOA → гекс; ≈1,4 % населения попадает в отброшенные краевые гексы.</li></ul></div>
+ <div class="card teal"><h3>Как проверить модель</h3><ul><li>DfT и Zapmap ежеквартально публикуют число устройств по боро; TfL — загрузку по типам зарядок.</li><li>Хабы, открытые после июля 2026 г. в гексах с высоким неудовлетворённым спросом, должны в течение года выйти на загрузку выше медианы.</li><li>Если нет — карточка модели называет допущения, которые пересматривать первыми: размер парка private hire, долю публичной зарядки без домашней, радиус выбора.</li><li><b>Прогноз → внедрение → измерение → переобучение</b> — вот продукт; карты — его интерфейс.</li></ul></div>
+</div></section><section class="slide ">
+<h2>Что получает оператор или инвестор — и что дальше</h2>
+<div class="grid2"><div class="card "><h3>Ранжированные кандидаты с интервалами</h3><p>Ожидаемые сессии в сутки, P10–P90, доля, отобранная у соседей, резерв подстанции и зона доступности по времени в пути для каждого гекса.</p></div><div class="card "><h3>Ёмкость, а не только точка</h3><p>Число портов и мощность подбираются по модели очередей под уровень сервиса, а не по шаблону.</p></div><div class="card "><h3>Устойчивость портфеля</h3><p>Какие хабы выбираются при любом уровне спроса (устойчивое ядро), а какие взаимозаменяемы с соседними гексами — ядро строить первым, остальное вводить позже.</p></div><div class="card "><h3>Следующий шаг — с данными оператора</h3><p>Параметры выбора по реальным маршрутам, профили по часам, неопределённость по гексам на реальных сессиях, разностные оценки эффекта открытий (staggered DiD).</p></div></div></section><section class="slide dark">
+<div class="title-wrap">
+  <h1 class="h1s">Посмотреть самому</h1>
+  <ul class="links"><li>Репозиторий: <a href="https://github.com/m-erts/chargescape-london">github.com/m-erts/chargescape-london</a> — код, 22 теста, каталог данных, методология, карточка модели</li><li>Живые карты: <a href="../maps/supply_2026.html">предложение</a> · <a href="../maps/demand_2026.html">спрос</a> · <a href="../maps/rapid_network_load_2026.html">нагрузка сети</a> · <a href="../maps/siting_hubs.html">размещение хабов</a></li><li>Ноутбуки 01–05 на <a href="https://nbviewer.org/github/m-erts/chargescape-london/tree/main/notebooks/">nbviewer</a>: аудит предложения · спрос · выбор и очереди · размещение · проверка переноса</li><li>Воспроизвести: <code>pip install -e .[all]</code> → <code>make models maps slides</code></li></ul>
+  <p class="byline">Marija Ercegovac · <a href="https://github.com/m-erts">github.com/m-erts</a></p>
+</div></section></div>
+<div class="nav" id="nav" aria-label="slides"></div><div class="counter" id="counter"></div><div class="top"><span>← → листать · F — полный экран</span><span><a href="index.html">EN</a> · <b>RU</b></span></div>
+<script>
+const S=[...document.querySelectorAll('.slide')]; const nav=document.getElementById('nav');
+let i=Math.max(0,Math.min(S.length-1,parseInt(location.hash.slice(1))||0));
+S.forEach((_,k)=>{const b=document.createElement('button');b.setAttribute('aria-label','slide '+(k+1));b.onclick=()=>go(k);nav.appendChild(b)});
+function go(k){i=(k+S.length)%S.length;S.forEach((s,j)=>s.classList.toggle('active',j===i));[...nav.children].forEach((d,j)=>d.classList.toggle('on',j===i));
+ document.body.classList.toggle('dark-on',S[i].classList.contains('dark'));document.getElementById('counter').textContent=(i+1)+' / '+S.length;history.replaceState(null,'','#'+i);}
+function key(k){if(['ArrowRight',' ','PageDown'].includes(k))go(i+1);else if(['ArrowLeft','PageUp'].includes(k))go(i-1);else if(k==='f'||k==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}}
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('a,button'))return;key(e.key);if([' ','PageDown','PageUp'].includes(e.key))e.preventDefault();});
+addEventListener('message',e=>{if(e.data&&e.data.cs_key)key(e.data.cs_key);});
+addEventListener('hashchange',()=>{const k=parseInt(location.hash.slice(1));if(!isNaN(k)&&k!==i)go(k);});
+let x0=null;addEventListener('touchstart',e=>{x0=e.touches[0].clientX},{passive:true});addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>60)go(i+(dx<0?1:-1));x0=null},{passive:true});
+go(i);
+</script></body></html>

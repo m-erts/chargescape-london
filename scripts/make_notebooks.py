@@ -116,7 +116,7 @@ gap.groupby("borough").agg(hexes=("h3", "size"), private_evs=("piv_private_est",
         "md",
         """## Takeaways
 * Supply follows *devices*, need follows *cars without driveways*: the densest slow networks sit in inner boroughs, the largest private EV stocks in outer, house-rich boroughs — but the group that depends most on public charging (EV owners in flats) forms distinct hot spots, mostly in inner-west and inner-south London.
-* Rapid access by drive time is already dense: the gap table above lists the few top-quartile-need hexes that are more than six minutes' drive from a rapid site. In London the binding constraint is therefore *capacity and queues* at existing sites rather than pure distance — which is what notebooks 03–04 model.
+* Rapid access by drive time is dense: the gap count above is zero or close to it — hardly any top-quartile-need hex is more than six minutes' drive from a rapid site. In London the binding constraint is therefore *capacity and queues* at existing sites rather than distance — which is what notebooks 03–04 model.
 * Everything above is observed data; the next notebook turns it into a demand surface with explicit uncertainty.""",
     ),
 ]
@@ -271,9 +271,11 @@ nb04 = [
         "md",
         """# 04 · Siting new rapid hubs under budget, capacity, grid and demand uncertainty
 
-**Question.** With a given budget, where should the next 4 × 150 kW hubs go so that the most currently unmet or queue-constrained rapid demand is served within 8 minutes' drive — and which choices stay good if demand is 30 % lower or higher?
+**Question.** With a given budget, where should the next 4 × 150 kW hubs go so that the most currently unmet or queue-constrained rapid demand is served within 8 minutes' drive — and which choices stay good if demand is lower or higher than expected, or the behavioural assumptions are wrong?
 
-**Method.** Candidates = plausible hexes (parking / fuel / retail present or heavy traffic, primary substation not RED), pre-filtered to the 500 with most local unmet demand. Capacitated maximal covering MILP (HiGHS via scipy) with per-hub capacity from Erlang C (P(wait) ≤ 15 % at peak) and a budget; robust two-stage version over P10/P50/P90 scenarios; greedy uncapacitated baseline for contrast.""",
+**Method.** Candidates = plausible hexes (parking / fuel / retail present or heavy traffic, primary substation not RED), pre-filtered to the 500 with most local unmet demand. Capacitated maximal covering MILP (HiGHS via SciPy) with per-hub capacity from Erlang C (P(wait) ≤ 15 % at the peak hour) and a budget; the MIP gap of every solve is recorded. Demand uncertainty: a plan is optimised for each scenario (P10, P50, P90) and every plan is evaluated *exactly* under every scenario (fixed-plan assignment LP), which gives expected coverage, regret, and a **robust core** — hubs chosen, in the same or an adjacent hex, whatever the demand level. Greedy uncapacitated coverage is shown for contrast.
+
+*A note on the single two-stage robust MILP.* `facility.robust_capacitated_mclp` solves one plan against all three scenarios at once and passes its unit tests, but on the London instance HiGHS leaves a very large gap after 5 minutes — its incumbent is not a usable plan. Reporting it would be misleading, so the pipeline uses the exact scenario analysis above.""",
     ),
     ("code", HEADER),
     (
@@ -283,7 +285,7 @@ sweep = pd.read_csv(TABLES / "siting_budget_sweep_2026.csv")
 cap = meta["hub_capacity_sessions_day"]
 sweep["capacity_bound_share"] = sweep["covered_p50"] / (sweep["n_hubs"] * cap)  # 1.0 = every hub is full
 sweep["hubs_needed_for_all_unmet"] = np.ceil(sweep["total_unmet_p50"] / cap).astype(int)
-sweep.round(3)""",
+sweep[["budget_m", "n_hubs", "covered_p50", "total_unmet_p50", "coverage_share", "mip_gap", "greedy_uncapacitated_covered", "capacity_bound_share", "hubs_needed_for_all_unmet"]].round(3)""",
     ),
     (
         "code",
@@ -293,31 +295,43 @@ ax.plot(sweep.budget_m, sweep.greedy_uncapacitated_covered, "s--", label="greedy
 ax.set_xlabel("budget, £M"); ax.set_ylabel("unmet rapid sessions/day served"); ax.set_title("Budget → served unmet demand (2026, P50)", loc="left"); ax.legend(frameon=False); ax.grid(alpha=0.3)
 save(fig, "04_budget_curve.png"); plt.show()""",
     ),
-    ("md", "## Selected hubs (P50 vs robust) at £20M"),
+    ("md", "## Demand uncertainty: every plan evaluated under every scenario"),
+    (
+        "code",
+        """cross = pd.read_csv(TABLES / "siting_scenarios_2026.csv")
+c20 = cross[cross.budget_m == 20]
+share = c20.pivot(index="plan", columns="scenario", values="share").loc[["p10", "p50", "p90"], ["p10", "p50", "p90"]]
+regret = c20.pivot(index="plan", columns="scenario", values="regret").loc[["p10", "p50", "p90"], ["p10", "p50", "p90"]]
+print("Share of unmet demand served at £20M — rows: plan optimised for, columns: demand that materialises")
+print((share * 100).round(1).to_string())
+print("\\nRegret (sessions/day lost vs the plan optimised for that scenario):")
+print(regret.round(0).to_string())
+sweep[["budget_m", "p50_plan_share_if_p10", "p50_plan_share_if_p90", "p50_plan_max_regret", "best_plan_by_expected", "best_plan_by_minimax_regret", "core_same_hex", "core_same_or_adjacent", "n_hubs"]].round(3)""",
+    ),
+    ("md", "## The recommended £20M plan and its robust core"),
     (
         "code",
         """sel = pd.read_parquet(PROCESSED / "siting_selected_2026.small.parquet")
-b = 20.0 if (sel.budget_m == 20.0).any() else sel.budget_m.max()
-s20 = sel[sel.budget_m == b]
-both = set(s20[s20.model == "p50"].h3) & set(s20[s20.model == "robust"].h3)
-print(f"budget £{b:.0f}M: {len(s20[s20.model=='p50'])} hubs (P50), {len(s20[s20.model=='robust'])} hubs (robust), {len(both)} in both")
+rec = sweep.set_index("budget_m").loc[20, "best_plan_by_minimax_regret"]
+s20 = sel[(sel.budget_m == 20) & (sel.model == rec)]
+print(f"£20M recommended plan (optimised for {rec.upper()} demand, smallest maximum regret): {len(s20)} hubs; robust core (same or adjacent hex in the other two scenario plans): {int(s20.core.sum())}; exactly the same hex: {int(s20.core_exact.sum())}")
 svc = pd.read_parquet(PROCESSED / "hex_service_2026.small.parquet")
 g = feats.merge(svc, on="h3", how="left")
 g["unmet"] = g["unserved_sessions_day"].fillna(0) + g["rapid_sessions_day"].fillna(0) * g["served_share"].fillna(0) * np.clip(g["expected_wait_min"].fillna(0) / 30, 0, 1)
 fig, ax = plt.subplots(figsize=(10, 8))
-hex_map(g, "unmet", "Unmet / queue-constrained rapid demand 2026 (sessions/day) with selected hubs", cmap="Greys", scheme="quantiles", k=6, ax=ax, legend_label="sessions/day")
+hex_map(g, "unmet", "Unmet / queue-constrained rapid demand 2026 (sessions/day) and the recommended £20M plan", cmap="Greys", scheme="quantiles", k=6, ax=ax, legend_label="sessions/day")
 hexes = feats.set_index("h3")
-for model, color, marker in [("p50", "#e4572e", "o"), ("robust", "#1b4965", "^")]:
-    pts = hexes.loc[s20[s20.model == model].h3]
-    gpd.GeoDataFrame(pts, geometry=gpd.points_from_xy(pts.lon, pts.lat), crs=4326).to_crs(27700).plot(ax=ax, color=color, marker=marker, markersize=60, label=f"{model} ({len(pts)})", edgecolor="white")
+for flag, color, label in [(True, "#0c7c70", "robust core"), (False, "#e4572e", "recommended plan, outside the core")]:
+    pts = hexes.loc[s20[s20.core == flag].h3]
+    gpd.GeoDataFrame(pts, geometry=gpd.points_from_xy(pts.lon, pts.lat), crs=4326).to_crs(27700).plot(ax=ax, color=color, markersize=64, label=f"{label} ({len(pts)})", edgecolor="white")
 ax.legend(loc="lower right", frameon=False); save(fig, "04_selected_hubs.png"); plt.show()
-s20.groupby(["model", "borough"]).size().unstack(0).fillna(0).astype(int).sort_values("p50", ascending=False).head(15)""",
+s20.groupby("borough").agg(hubs=("h3", "size"), core=("core", "sum")).sort_values("hubs", ascending=False).head(12)""",
     ),
     ("md", "## Sensitivity to behavioural and service assumptions (£20M)"),
     (
         "code",
         """sens = pd.read_csv(TABLES / "sensitivity_2026_budget20m.csv")
-show = sens[["variant", "unmet_sessions_day", "hub_capacity_sessions_day", "n_hubs", "coverage_share", "same_hex_as_base", "same_or_adjacent_hex"]].copy()
+show = sens[["variant", "unmet_sessions_day", "hub_capacity_sessions_day", "n_hubs", "coverage_share", "mip_gap", "same_hex_as_base", "same_or_adjacent_hex"]].copy()
 fig, ax = plt.subplots(figsize=(8, 4.2))
 y = np.arange(len(show))[::-1]
 ax.barh(y, show.same_or_adjacent_hex * 100, color="#0c7c70", label="same or adjacent hex as base")
@@ -329,15 +343,11 @@ show.round(3)""",
     ),
     (
         "md",
-        """**Reading.** Unmet demand — and hence how many hubs a budget buys and what share they cover — moves with the service level and the width of the choice set, while the *location* of the chosen hubs is far more stable once "same or adjacent hex" is used instead of an exact match. The honest summary for a planner: the corridors are robust, the exact hex is a local-survey decision, and the service standard is a business choice with a larger effect than any behavioural coefficient.""",
-    ),
-    (
-        "md",
         """## Reading
-* **The regime is capacity-bound, not location-bound.** With a 15 % peak-wait service level a 4 × 150 kW hub absorbs about 33 sessions/day, so covered demand rises almost linearly with budget (`capacity_bound_share` ≈ 1) until the ~90 hubs needed to absorb today's unmet demand. The exact model therefore serves a fraction of what the greedy uncapacitated estimate claims — that gap is demand a hub physically cannot take at an acceptable wait, which naïve coverage models hand out for free.
-* **Low overlap between the P50 and robust solutions is degeneracy, not fragility.** When every hub fills up, many candidate sets are near-equivalent; the robust model simply picks another equivalent set. The operationally useful reading is the *set of hexes that appear in either* solution — the demand-dense corridors where hubs pay back under any scenario — and the phasing question becomes "how many hubs per corridor", which the queue model answers.
-* Every selected hex carries its primary-substation headroom label, so a RED site never enters the candidate set and loaded primaries pay a connection uplift.
-* Relaxing the service level (e.g. P(wait) ≤ 30 %) or larger hubs (8 ports) raise per-hub capacity and shift the regime back towards location choice — a one-line change in `siting_pipeline.py` to explore.""",
+* **The regime is capacity-bound, not location-bound.** With a 15 % peak-wait service level a 4 × 150 kW hub absorbs about 33 sessions/day, so covered demand rises almost linearly with budget (`capacity_bound_share` ≈ 1) until roughly the number of hubs needed to absorb today's unmet demand (`hubs_needed_for_all_unmet`). The exact model serves a fraction of what the greedy uncapacitated estimate claims — that gap is demand a hub physically cannot take at an acceptable wait, which naïve coverage models hand out for free.
+* **Plan for pessimistic demand while capacity binds.** Up to £20M the plan optimised for P10 demand has zero regret in every scenario (`best_plan_by_minimax_regret`): capacity-bound hubs placed where even low demand is dense fill up whatever happens, whereas hubs placed for median demand may not. At £40M, when capacity no longer binds everywhere, the recommendation flips to the P90 plan. The three scenario plans share a robust core (same or adjacent hex) that grows with budget; build the core first and phase the rest as utilisation data arrive.
+* **Behavioural assumptions move the unmet total; the service standard moves coverage most.** Exact hexes reshuffle between variants — partly because the demand pattern shifts, partly because many near-equivalent hub sets exist when every hub is full — so "same or adjacent hex" is the more meaningful stability measure (table above). The corridors are robust, the exact hex is a local-survey decision.
+* Every selected hex carries its primary-substation headroom label: a RED site never enters the candidate set and loaded primaries pay a connection uplift.""",
     ),
 ]
 nb(nb04, NB / "04_siting.ipynb")
@@ -432,7 +442,7 @@ j.groupby("borough")[["pred_spd_p50", "alloc_per_port"]].median().sort_values("p
     (
         "md",
         """## Reading
-Two models that share no parameters — a structural demand model driven by EV stock, housing and traffic, and a transfer model trained on observed sessions elsewhere — produce **essentially uncorrelated** rankings of London's rapid sites (ρ reported above). Given the transfer model's out-of-city failure, the disagreement says more about the transfer model than about London. The structural model at least reproduces observed aggregates (notebook 02); the transfer model reproduces nothing outside its training cities. Both are weaker than one season of the network's own data — which is why the README sets out what to measure once hubs open, and why the choice model's parameters are flagged as the first thing to estimate from revealed preferences.""",
+Two models that share no parameters — a structural demand model driven by EV stock, housing and traffic, and a transfer model trained on observed sessions elsewhere — produce **only weakly correlated** rankings of London's rapid sites (ρ reported above). Given the transfer model's out-of-city failure, the disagreement says more about the transfer model than about London. The structural model at least reproduces observed aggregates (notebook 02); the transfer model reproduces nothing outside its training cities. Both are weaker than one season of the network's own data — which is why the README sets out what to measure once hubs open, and why the choice model's parameters are flagged as the first thing to estimate from revealed preferences.""",
     ),
 ]
 nb(nb05, NB / "05_utilisation_transfer.ipynb")

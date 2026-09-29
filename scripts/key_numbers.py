@@ -92,6 +92,23 @@ def main() -> dict:
     if sw.exists():
         k["siting"] = pd.read_csv(sw).to_dict(orient="records")
         k["siting_meta"] = json.loads((TABLES / "siting_meta_2026.json").read_text())
+        cross = pd.read_csv(TABLES / "siting_scenarios_2026.csv")
+        sel = pd.read_parquet(PROCESSED / "siting_selected_2026.small.parquet")
+        for row in k["siting"]:
+            b, rec = row["budget_m"], row["best_plan_by_minimax_regret"]
+            cr = cross[(cross.budget_m == b) & (cross.plan == rec)].set_index("scenario")
+            sr = sel[(sel.budget_m == b) & (sel.model == rec)]
+            row.update(
+                {
+                    "rec_plan": rec,
+                    "rec_n_hubs": int(len(sr)),
+                    "rec_core": int(sr.core.sum()),
+                    "rec_max_regret": float(cr.regret.max()),
+                    "rec_share_p10": float(cr.loc["p10", "share"]),
+                    "rec_share_p50": float(cr.loc["p50", "share"]),
+                    "rec_share_p90": float(cr.loc["p90", "share"]),
+                }
+            )
     sens = TABLES / "sensitivity_2026_budget20m.csv"
     if sens.exists():
         sv = pd.read_csv(sens)

@@ -7,6 +7,12 @@
   "chargers_total": 31371,
   "chargers_rapid": 2533,
   "rapid_share": 0.081,
+  "sites_total": 13174,
+  "sites_by_source": {
+    "ocm": 12519,
+    "osm": 358,
+    "ncr": 297
+  },
   "demand_gwh": {
     "2026": {
       "total_p10": 216.0,
@@ -44,6 +50,7 @@
   "rapid_sites": 632,
   "rapid_ports_calibrated": 2860,
   "rapid_ports_known": 1730,
+  "port_scale_median": 1.62,
   "sites_pwait_gt_50": 348,
   "util24_median": 0.154,
   "rapid_sessions_day_total": 33130.0,
@@ -59,9 +66,23 @@
       "coverage_share": 0.1488337729457684,
       "greedy_uncapacitated_covered": 1883.6926902876476,
       "status": "Optimal",
-      "robust_n_hubs": 12,
-      "robust_overlap_with_p50": 3,
-      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+      "mip_gap": 0.0,
+      "mip_gap_p10_plan": 0.0,
+      "mip_gap_p90_plan": 0.0,
+      "p50_plan_share_if_p10": 0.192256531559627,
+      "p50_plan_share_if_p90": 0.1181061538273638,
+      "p50_plan_max_regret": 5.827287901657144,
+      "best_plan_by_expected": "p10",
+      "best_plan_by_minimax_regret": "p10",
+      "core_same_hex": 3,
+      "core_same_or_adjacent": 6,
+      "rec_plan": "p10",
+      "rec_n_hubs": 12,
+      "rec_core": 5,
+      "rec_max_regret": 2.273736754432321e-13,
+      "rec_share_p10": 0.195100646378928,
+      "rec_share_p50": 0.1488337729457683,
+      "rec_share_p90": 0.1181061538273638
     },
     {
       "budget_m": 10.0,
@@ -71,21 +92,49 @@
       "coverage_share": 0.3100703603036842,
       "greedy_uncapacitated_covered": 2248.1452014610936,
       "status": "Optimal",
-      "robust_n_hubs": 25,
-      "robust_overlap_with_p50": 9,
-      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+      "mip_gap": 0.0,
+      "mip_gap_p10_plan": 0.0,
+      "mip_gap_p90_plan": 0.0,
+      "p50_plan_share_if_p10": 0.3679007956361577,
+      "p50_plan_share_if_p90": 0.2460544871403417,
+      "p50_plan_max_regret": 79.0030411480451,
+      "best_plan_by_expected": "p10",
+      "best_plan_by_minimax_regret": "p10",
+      "core_same_hex": 6,
+      "core_same_or_adjacent": 12,
+      "rec_plan": "p10",
+      "rec_n_hubs": 25,
+      "rec_core": 12,
+      "rec_max_regret": 9.094947017729282e-13,
+      "rec_share_p10": 0.4064596799561,
+      "rec_share_p50": 0.3100703603036838,
+      "rec_share_p90": 0.2460544871403414
     },
     {
       "budget_m": 20.0,
       "n_hubs": 51,
-      "covered_p50": 1647.2444710345185,
+      "covered_p50": 1698.8967608725616,
       "total_unmet_p50": 2685.817918951848,
-      "coverage_share": 0.6133120415241561,
+      "coverage_share": 0.6325435350195159,
       "greedy_uncapacitated_covered": 2319.167979943623,
-      "status": "Time limit reached. (HiGHS Status 13: Time limit reached)",
-      "robust_n_hubs": 51,
-      "robust_overlap_with_p50": 16,
-      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+      "status": "Optimal",
+      "mip_gap": 0.0,
+      "mip_gap_p10_plan": 0.0,
+      "mip_gap_p90_plan": 0.0049019607843131,
+      "p50_plan_share_if_p10": 0.7602271349143351,
+      "p50_plan_share_if_p90": 0.501951153766296,
+      "p50_plan_max_regret": 141.27244987984932,
+      "best_plan_by_expected": "p10",
+      "best_plan_by_minimax_regret": "p10",
+      "core_same_hex": 10,
+      "core_same_or_adjacent": 22,
+      "rec_plan": "p10",
+      "rec_n_hubs": 51,
+      "rec_core": 22,
+      "rec_max_regret": 2.0463630789890885e-12,
+      "rec_share_p10": 0.8291777471104423,
+      "rec_share_p50": 0.6325435350195162,
+      "rec_share_p90": 0.5019511537662965
     },
     {
       "budget_m": 40.0,
@@ -95,9 +144,23 @@
       "coverage_share": 0.8592501284666607,
       "greedy_uncapacitated_covered": 2319.167979943623,
       "status": "Optimal",
-      "robust_n_hubs": 102,
-      "robust_overlap_with_p50": 35,
-      "robust_status": "Time limit reached. (HiGHS Status 13: Time limit reached)"
+      "mip_gap": 0.0015799779982228,
+      "mip_gap_p10_plan": 0.0008830806487848,
+      "mip_gap_p90_plan": 0.0019998837262893,
+      "p50_plan_share_if_p10": 0.8630658299125401,
+      "p50_plan_share_if_p90": 0.8533904965973489,
+      "p50_plan_max_regret": 1.7595204267595363,
+      "best_plan_by_expected": "p90",
+      "best_plan_by_minimax_regret": "p90",
+      "core_same_hex": 50,
+      "core_same_or_adjacent": 81,
+      "rec_plan": "p90",
+      "rec_n_hubs": 96,
+      "rec_core": 71,
+      "rec_max_regret": 1.1786020134036337,
+      "rec_share_p10": 0.8637235135991711,
+      "rec_share_p50": 0.8599052437722597,
+      "rec_share_p90": 0.8530422702341676
     }
   ],
   "siting_meta": {
@@ -108,5 +171,196 @@
     "radius_min": 8.0,
     "hub_cost_gbp": 390000
   },
-  "transfer_stations": 204
+  "sensitivity": {
+    "variants": 9,
+    "same_or_adjacent_min": 0.65,
+    "same_or_adjacent_median": 0.75,
+    "same_hex_median": 0.41,
+    "unmet_range": [
+      2495,
+      2972
+    ],
+    "rows": [
+      {
+        "variant": "base",
+        "unmet_sessions_day": 2685.817918951848,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.6325435350195159,
+        "same_hex_as_base": 1.0,
+        "same_or_adjacent_hex": 1.0,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 90.1
+      },
+      {
+        "variant": "travel-time coefficient \u22120.15/min (less distance-sensitive)",
+        "unmet_sessions_day": 2677.96794243975,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.634397721477125,
+        "same_hex_as_base": 0.4705882352941176,
+        "same_or_adjacent_hex": 0.803921568627451,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 172.9
+      },
+      {
+        "variant": "travel-time coefficient \u22120.40/min (more distance-sensitive)",
+        "unmet_sessions_day": 2959.552516593215,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.5740383897050041,
+        "same_hex_as_base": 0.4117647058823529,
+        "same_or_adjacent_hex": 0.7058823529411765,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 187.9
+      },
+      {
+        "variant": "power coefficient 0.3 (power matters less)",
+        "unmet_sessions_day": 2494.666219829041,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.6810116509249827,
+        "same_hex_as_base": 0.4509803921568627,
+        "same_or_adjacent_hex": 0.8431372549019608,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 281.9
+      },
+      {
+        "variant": "power coefficient 1.0 (power matters more)",
+        "unmet_sessions_day": 2972.1941386163953,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.5715968344057853,
+        "same_hex_as_base": 0.4117647058823529,
+        "same_or_adjacent_hex": 0.7450980392156863,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 18.0
+      },
+      {
+        "variant": "choice set 15 min",
+        "unmet_sessions_day": 2502.304634926962,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.6789328274261657,
+        "same_hex_as_base": 0.4705882352941176,
+        "same_or_adjacent_hex": 0.7843137254901961,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 228.3
+      },
+      {
+        "variant": "choice set 30 min",
+        "unmet_sessions_day": 2740.6506338571717,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.619888117035022,
+        "same_hex_as_base": 0.3725490196078431,
+        "same_or_adjacent_hex": 0.6470588235294118,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 185.8
+      },
+      {
+        "variant": "service level P(wait) \u2264 30 %",
+        "unmet_sessions_day": 2685.817918951848,
+        "hub_capacity_sessions_day": 42.80936568043452,
+        "n_hubs": 51,
+        "coverage_share": 0.8128911622401392,
+        "same_hex_as_base": 0.5098039215686274,
+        "same_or_adjacent_hex": 0.7647058823529411,
+        "status": "Optimal",
+        "mip_gap": 0.0049019607843136,
+        "seconds": 241.2
+      },
+      {
+        "variant": "coverage radius 6 min",
+        "unmet_sessions_day": 2685.817918951848,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.6300664912945007,
+        "same_hex_as_base": 0.2549019607843137,
+        "same_or_adjacent_hex": 0.6470588235294118,
+        "status": "Optimal",
+        "mip_gap": 0.0088526328651319,
+        "seconds": 36.5
+      },
+      {
+        "variant": "coverage radius 10 min",
+        "unmet_sessions_day": 2685.817918951848,
+        "hub_capacity_sessions_day": 33.31170119357964,
+        "n_hubs": 51,
+        "coverage_share": 0.6325435350195159,
+        "same_hex_as_base": 0.2156862745098039,
+        "same_or_adjacent_hex": 0.6470588235294118,
+        "status": "Optimal",
+        "mip_gap": 0.0,
+        "seconds": 84.3
+      }
+    ]
+  },
+  "cannibalisation": {
+    "candidate": {
+      "h3": "88195d371bfffff",
+      "borough": "Hillingdon"
+    },
+    "rows": [
+      {
+        "power_kw": 50,
+        "ports": 2,
+        "captured": 44.285,
+        "new": 15.994,
+        "cannibalised": 28.291,
+        "cannibalisation_share": 0.639
+      },
+      {
+        "power_kw": 150,
+        "ports": 4,
+        "captured": 93.636,
+        "new": 28.014,
+        "cannibalised": 65.622,
+        "cannibalisation_share": 0.701
+      },
+      {
+        "power_kw": 150,
+        "ports": 8,
+        "captured": 111.521,
+        "new": 31.514,
+        "cannibalised": 80.007,
+        "cannibalisation_share": 0.717
+      },
+      {
+        "power_kw": 300,
+        "ports": 8,
+        "captured": 157.553,
+        "new": 39.322,
+        "cannibalised": 118.23,
+        "cannibalisation_share": 0.75
+      }
+    ]
+  },
+  "transfer": {
+    "n_stations": 204,
+    "cities": [
+      "boulder",
+      "dundee",
+      "palo_alto",
+      "pkc"
+    ],
+    "r2_random": 0.697,
+    "r2_leave_city_out": -0.249,
+    "spearman_by_city": {
+      "boulder": -0.04,
+      "dundee": -0.34,
+      "palo_alto": 0.02,
+      "pkc": 0.64
+    }
+  },
+  "n_sources": 32,
+  "n_tests": 22,
+  "n_notebooks": 5
 }

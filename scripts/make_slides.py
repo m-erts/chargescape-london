@@ -55,6 +55,10 @@ can_lo, can_hi = (
     max(r["cannibalisation_share"] for r in can_rows),
 )
 sens = K.get("sensitivity", {})
+_ratios = [
+    r["greedy_uncapacitated_covered"] / r["covered_p50"] for r in K.get("siting", []) if r["covered_p50"] > 0
+]
+greedy_lo, greedy_hi = (min(_ratios), max(_ratios)) if _ratios else (1.0, 1.0)
 
 
 # ----------------------------------------------------------------------------- building blocks
@@ -158,8 +162,8 @@ def slides(lang: str) -> list[str]:
         (
             L("Uncertainty reaches the decision.", "Неопределённость доходит до решения."),
             L(
-                "P10/P50/P90 per hex; a robust MILP picks hubs that hold across scenarios; a sensitivity run shows what moves.",
-                "P10/P50/P90 для каждого гекса; робастная MILP выбирает хабы, устойчивые во всех сценариях; анализ чувствительности показывает, что меняется.",
+                "P10/P50/P90 per hex; a plan is solved for each demand scenario and tested under the others; a sensitivity run shows what moves.",
+                "P10/P50/P90 для каждого гекса; план решается под каждый сценарий спроса и проверяется на остальных; анализ чувствительности показывает, что меняется.",
             ),
         ),
         (
@@ -346,6 +350,14 @@ def slides(lang: str) -> list[str]:
             f" Across {sens['variants']} changed assumptions, a median {p(sens['same_or_adjacent_median'])} of hubs stay in the same or an adjacent hex.",
             f" При {sens['variants']} изменённых допущениях в медиане {p(sens['same_or_adjacent_median'])} хабов остаются в том же или соседнем гексе.",
         )
+    if r20 and "rec_plan" in r20:
+        sens_txt = (
+            L(
+                f" Under demand uncertainty the plan optimised for {r20['rec_plan'].upper()} demand has the smallest worst-case regret ({n(r20['rec_max_regret'])} sessions/day at £20M): capacity-bound hubs placed where even low demand is dense fill up in every scenario. Robust core: {r20['rec_core']} of {r20['rec_n_hubs']} hubs.",
+                f" При неопределённом спросе лучший по минимаксу сожаления — план под спрос {r20['rec_plan'].upper()} (сожаление {n(r20['rec_max_regret'])} сессий в сутки при £20 млн): хабы там, где плотен даже низкий спрос, заполняются в любом сценарии. Устойчивое ядро: {r20['rec_core']} из {r20['rec_n_hubs']}.",
+            )
+            + sens_txt
+        )
     siting_line = ""
     if r20:
         siting_line = L(
@@ -364,7 +376,7 @@ def slides(lang: str) -> list[str]:
 <aside>
  <img src="img/04_budget_curve.png" alt="budget curve" class="small">
  <p><b>{siting_line}</b></p>
- <p class="note">{L(f"Capacity-bound: a hub absorbs ≈{cap:.0f} sessions/day at P(wait) ≤ 15 %, so coverage grows almost linearly with budget; greedy uncapacitated coverage overstates it several-fold.", f"Режим ограничен ёмкостью: хаб принимает ≈{cap:.0f} сессии в сутки при P(ожидания) ≤ 15 %, поэтому покрытие растёт почти линейно с бюджетом; жадное решение без учёта ёмкости завышает его в разы.")}{sens_txt}</p>
+ <p class="note">{L(f"Capacity-bound: a hub absorbs ≈{cap:.0f} sessions/day at P(wait) ≤ 15 %, so coverage grows almost linearly with budget; greedy uncapacitated coverage overstates it by up to {n(greedy_hi, 1)}× at small budgets.", f"Режим ограничен ёмкостью: хаб принимает ≈{cap:.0f} сессии в сутки при P(ожидания) ≤ 15 %, поэтому покрытие растёт почти линейно с бюджетом; жадное решение без учёта ёмкости завышает его до {n(greedy_hi, 1)} раза при малых бюджетах.")}{sens_txt}</p>
 </aside></div>""")
     )
 
@@ -446,8 +458,8 @@ def slides(lang: str) -> list[str]:
             L("Optimisation", "Оптимизация"),
             "SciPy milp (HiGHS)",
             L(
-                "sparse capacitated & robust MCLP; linking cuts turned a 20 s time-out into a 5 s optimum",
-                "разреженная MCLP с ёмкостью и робастная версия; связующие ограничения превратили таймаут 20 с в оптимум за 5 с",
+                "sparse capacitated MCLP and exact fixed-plan LPs; linking cuts turned a 20 s time-out into a 5 s optimum; every MIP gap recorded",
+                "разреженная MCLP с ёмкостью и точные LP для фиксированных планов; связующие ограничения превратили таймаут 20 с в оптимум за 5 с; зазор MIP записан для каждого решения",
             ),
         ),
         (
@@ -571,8 +583,8 @@ def slides(lang: str) -> list[str]:
         (
             L("Portfolio robustness", "Устойчивость портфеля"),
             L(
-                "Which sites hold under low demand and which depend on the optimistic tail — phase the latter.",
-                "Какие площадки держатся при низком спросе, а какие зависят от оптимистичного хвоста — вторые стоит вводить позже.",
+                "Which hubs every demand scenario agrees on (the robust core) and which are interchangeable with neighbours — build the core first, phase the rest.",
+                "Какие хабы выбираются при любом уровне спроса (устойчивое ядро), а какие взаимозаменяемы с соседними гексами — ядро строить первым, остальное вводить позже.",
             ),
         ),
         (

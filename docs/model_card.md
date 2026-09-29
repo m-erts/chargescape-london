@@ -16,7 +16,7 @@ for site surveys, grid connection studies or commercial due diligence.
 | Supply | Open Charge Map ∪ OSM ∪ NCR 2021, de-duplicated within 50 m; ports of mapped rapid sites scaled per borough to DfT 50 kW+ counts (median ×1.6) | DfT EVCI 1 July 2026 | observed positions, observed totals, proxy port counts |
 | Station choice (`choice.py`) | multinomial logit | literature-informed parameters, not estimated | synthetic |
 | Queues (`queueing.py`) | Erlang C (M/M/c), 38-min service from Dundee median | observed service-time | analytic |
-| Siting (`facility.py`) | capacitated MCLP + robust two-stage MILP (SciPy / HiGHS), MIP gap recorded per run | — | optimisation |
+| Siting (`facility.py`) | capacitated MCLP (SciPy / HiGHS) with MIP gap recorded per solve; a plan per demand scenario cross-evaluated with an exact fixed-plan LP (regret, robust core) | — | optimisation |
 | Sensitivity (`sensitivity.py`) | re-solve at £20M under 9 changed assumptions on a fixed candidate set | — | analysis |
 | Utilisation transfer (`ml.py`, notebook 05) | LightGBM with leave-city-out CV | Dundee, Perth & Kinross, Palo Alto, Boulder observed sessions | observed target, out-of-London |
 
@@ -30,7 +30,8 @@ for site surveys, grid connection studies or commercial due diligence.
 * Consistency of modelled city totals with DfT charger counts × TfL observed occupancy (notebook 02).
 * Implied rapid sessions per charger per day compared with TfL occupancy and Dundee observations.
 * Spatial autocorrelation diagnostics (Moran's I) on inputs; leave-city-out cross-validation for the utilisation model (notebook 05: it does not transfer — reported as a negative result).
-* Siting sensitivity to 9 changed assumptions (notebook 04) and MIP optimality gaps recorded for every solve.
+* Plans for P10/P50/P90 demand cross-evaluated exactly (regret of the P50 plan, robust core); siting sensitivity to 9 changed assumptions (notebook 04); MIP optimality gaps recorded for every solve.
+* The two-stage robust MILP (`robust_capacitated_mclp`) does not close its gap within 5 minutes on this instance; its incumbent is not reported.
 
 ## Validation still to do (the post-hoc plan)
 The recommendation for each hex is falsifiable: DfT/Zapmap publish quarterly device counts by borough and TfL publishes utilisation by type. Sites opened after July 2026 in hexes flagged here as high unmet demand should show above-median utilisation within 12 months; a systematic miss would indicate the priors on PHV demand or the choice radius are wrong.

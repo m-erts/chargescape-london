@@ -47,20 +47,41 @@ def rows() -> dict[str, str]:
     can = K["cannibalisation"]["rows"]
     lo, hi = min(r["cannibalisation_share"] for r in can), max(r["cannibalisation_share"] for r in can)
     out["New hub cannibalisation"] = (
-        f"{pct(lo)}–{pct(hi)} of a new hub's sessions are taken from existing sites (hub at the hex with most unmet demand, {K['cannibalisation']['candidate']['borough']}; 50 kW × 2 to 300 kW × 8)",
+        f"{100 * lo:.0f}–{pct(hi)} of a new hub's sessions are taken from existing sites (hub at the hex with most unmet demand, {K['cannibalisation']['candidate']['borough']}; 50 kW × 2 to 300 kW × 8)",
         "logit with outside option, notebook 03",
     )
     sit = {r["budget_m"]: r for r in K.get("siting", [])}
     r20, r40 = sit.get(20.0), sit.get(40.0)
+    ratios = [
+        r["greedy_uncapacitated_covered"] / r["covered_p50"]
+        for r in K.get("siting", [])
+        if r["covered_p50"] > 0
+    ]
     if r20:
         cap = K["siting_meta"]["hub_capacity_sessions_day"]
         gap = r20.get("mip_gap")
-        opt = f"; solved to a {100 * gap:.1f} % MIP gap" if isinstance(gap, float) and gap == gap else ""
+        opt = ", proven optimal" if isinstance(gap, float) and gap == gap and gap < 0.005 else ""
         txt = f"{r20['n_hubs']} hubs serve {pct(r20['coverage_share'])} of unmet or queue-constrained rapid demand ({r20['covered_p50']:,.0f} of {r20['total_unmet_p50']:,.0f} sessions/day){opt}"
         if r40:
             txt += f"; £40M → {r40['n_hubs']} hubs, {pct(r40['coverage_share'])}"
-        txt += f". Capacity-bound: ≈{cap:.0f} sessions/day per hub at P(wait) ≤ 15 %; greedy uncapacitated coverage overstates it {r20['greedy_uncapacitated_covered'] / r20['covered_p50']:.1f}×"
+        txt += f". Capacity-bound: ≈{cap:.0f} sessions/day per hub at P(wait) ≤ 15 %; greedy uncapacitated coverage overstates it by up to {max(ratios):.1f}× at small budgets"
         out["New hubs, £20M budget"] = (txt, "MILP, notebook 04")
+    if r20 and "rec_plan" in r20:
+        cons = [r for r in K["siting"] if r["rec_plan"] == "p10"]
+        span = (
+            f"£{min(r['budget_m'] for r in cons):.0f}–{max(r['budget_m'] for r in cons):.0f}M" if cons else ""
+        )
+        txt = (
+            f"at {span} the plan optimised for pessimistic (P10) demand has the smallest maximum regret ({r20['rec_max_regret']:,.0f} sessions/day at £20M): hubs placed where even low demand is dense fill up under any scenario"
+            if cons
+            else f"the recommended plan at £20M is the {r20['rec_plan'].upper()} plan"
+        )
+        if r40:
+            txt += f"; at £40M the {r40['rec_plan'].upper()} plan is best. Robust core at £20M: {r20['rec_core']} of {r20['rec_n_hubs']} hubs chosen in the same or an adjacent hex by all three scenario plans"
+        out["Planning under demand uncertainty"] = (
+            txt,
+            "scenario plans + exact cross-evaluation, notebook 04",
+        )
     s = K.get("sensitivity")
     if s:
         out["Siting sensitivity"] = (

@@ -215,7 +215,7 @@ items = [
     ),
     (
         "Uncertainty reaches the decision",
-        "P10/P50/P90 per hex; a robust MILP picks hubs that hold across scenarios; a sensitivity run shows what moves.",
+        "P10/P50/P90 per hex; a plan is solved for each demand scenario and tested under the others; a sensitivity run shows what moves.",
     ),
     (
         "Queues, cannibalisation, grid",
@@ -461,7 +461,7 @@ title(
     "Live map: …/maps/siting_hubs.html (budgets £5–40M, P50 vs robust)",
 )
 picture(s, "04_selected_hubs.png", 0.6, 1.7, h=5.2)
-picture(s, "04_budget_curve.png", 7.4, 1.7, w=5.4)
+picture(s, "04_budget_curve.png", 7.4, 1.7, w=5.2)
 if r20:
     line = f"£20M ⇒ {r20['n_hubs']} hubs serve {100 * r20['coverage_share']:.0f} % of unmet rapid demand ({r20['covered_p50']:,.0f} of {r20['total_unmet_p50']:,.0f} sessions/day)."
     if r40:
@@ -471,12 +471,17 @@ if r20:
         if sens
         else ""
     )
+    if "rec_plan" in r20:
+        extra = (
+            f" Under demand uncertainty the {r20['rec_plan'].upper()} plan has the smallest worst-case regret ({r20['rec_max_regret']:,.0f} sessions/day); robust core {r20['rec_core']} of {r20['rec_n_hubs']} hubs."
+            + extra
+        )
     text(
         s,
         7.4,
-        5.25,
+        5.45,
         5.5,
-        1.8,
+        1.6,
         [line, f"Capacity-bound: ≈{cap:.0f} sessions/day per hub at P(wait) ≤ 15 %.{extra}"],
         size=12,
     )
@@ -485,7 +490,7 @@ footer(s, n)
 # 11 transfer
 s = new()
 title(s, "Do context features explain observed utilisation anywhere? A negative result, on purpose")
-picture(s, "05_importance.png", 0.6, 1.6, h=4.6)
+picture(s, "05_importance.png", 0.6, 1.7, h=3.9)
 stat(s, 7.2, 1.7, 2.8, f"{tr['r2_random']:.2f}", "R² with random 5-fold CV", TEAL)
 stat(s, 10.1, 1.7, 2.8, f"{tr['r2_leave_city_out']:.2f}", "R² when the test city is unseen")
 bullets(
@@ -518,7 +523,11 @@ rows = [
         "esda · libpysal · LightGBM · scikit-learn",
         "Moran's I, Gi*; spatial cross-validation by default",
     ),
-    ("Optimisation", "SciPy milp (HiGHS)", "sparse capacitated & robust MCLP; MIP gap recorded per solve"),
+    (
+        "Optimisation",
+        "SciPy milp / linprog (HiGHS)",
+        "sparse capacitated MCLP and exact fixed-plan LPs; MIP gap recorded per solve",
+    ),
     ("Choice & queues", "NumPy", "Erlang C, multinomial logit, new vs cannibalised demand — unit-tested"),
     (
         "Delivery",
@@ -594,7 +603,7 @@ gets = [
     ),
     (
         "Portfolio robustness",
-        "Which sites hold under low demand and which depend on the optimistic tail — phase the latter.",
+        "Which hubs every demand scenario agrees on (the robust core) and which are interchangeable with neighbours — build the core first, phase the rest.",
     ),
     (
         "Next, with operator data",

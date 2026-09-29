@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import scipy.sparse as sp
-from scipy.optimize import Bounds, LinearConstraint, milp
+from scipy.optimize import Bounds, LinearConstraint, linprog, milp
 
 
 @dataclass
@@ -274,3 +274,36 @@ def coverage_of(demand: np.ndarray, tt: np.ndarray, radius_min: float, sites: li
         return 0.0
     feas = np.isfinite(tt[:, sites]) & (tt[:, sites] <= radius_min)
     return float(np.asarray(demand, float)[feas.any(axis=1)].sum())
+
+
+def evaluate_plan(
+    selected: list[int], demand: np.ndarray, tt: np.ndarray, radius_min: float, capacity: np.ndarray
+) -> float:
+    """Demand a fixed set of open sites can serve (capacitated assignment LP, exact). Used to cross-evaluate
+    a plan optimised for one demand scenario under another."""
+    d = np.asarray(demand, float)
+    if not selected:
+        return 0.0
+    sel = np.asarray(selected)
+    sub = tt[:, sel]
+    ii, jj = _feasible_pairs(sub, radius_min, d)
+    if len(ii) == 0:
+        return 0.0
+    k, n, m = len(ii), len(d), len(sel)
+    rows, cols, vals = [], [], []
+    r = 0
+    for _i, grp in _group(ii, n):
+        rows += [r] * len(grp)
+        cols += grp.tolist()
+        vals += [1.0] * len(grp)
+        r += 1
+    b = [1.0] * r
+    for j_idx, grp in _group(jj, m):
+        rows += [r] * len(grp)
+        cols += grp.tolist()
+        vals += d[ii[grp]].tolist()
+        b.append(float(np.asarray(capacity)[sel[j_idx]]))
+        r += 1
+    A = sp.csr_matrix((vals, (rows, cols)), shape=(r, k))
+    res = linprog(-d[ii], A_ub=A, b_ub=np.array(b), bounds=(0, 1), method="highs")
+    return float(-res.fun) if res.status == 0 else float("nan")

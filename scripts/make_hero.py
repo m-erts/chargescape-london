@@ -24,7 +24,12 @@ def main() -> None:
     sites = pd.read_parquet(PROCESSED / "rapid_sites_load_2026.small.parquet")
     sites = gpd.GeoDataFrame(sites, geometry=gpd.points_from_xy(sites.lon, sites.lat), crs=4326).to_crs(27700)
     sel = pd.read_parquet(PROCESSED / "siting_selected_2026.small.parquet")
-    hubs = feats.set_index("h3").loc[sel[(sel.budget_m == 20) & (sel.model == "p50")].h3].reset_index()
+    rec = (
+        sel[(sel.budget_m == 20) & (sel.recommended)]
+        if "recommended" in sel
+        else sel[(sel.budget_m == 20) & (sel.model == "p50")]
+    )
+    hubs = feats.set_index("h3").loc[rec.h3].reset_index()
     hubs["geometry"] = hubs.geometry.centroid
     b = boroughs()
 
@@ -60,7 +65,9 @@ def main() -> None:
         linewidth=0,
     )
     feats.plot(column="unmet", cmap="Greys", scheme="quantiles", k=6, ax=axes[2], linewidth=0)
-    hubs.plot(ax=axes[2], color="#e4572e", markersize=34, edgecolor="white", linewidth=0.7)
+    core = hubs["h3"].isin(set(rec.loc[rec.core, "h3"])) if "core" in rec else np.zeros(len(hubs), bool)
+    hubs[~core].plot(ax=axes[2], color="#e4572e", markersize=34, edgecolor="white", linewidth=0.7)
+    hubs[core].plot(ax=axes[2], color="#0c7c70", markersize=34, edgecolor="white", linewidth=0.7)
     for ax, t in zip(axes, titles, strict=True):
         b.boundary.plot(ax=ax, color="white", linewidth=0.35) if ax is not axes[1] else None
         ax.set_axis_off()

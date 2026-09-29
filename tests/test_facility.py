@@ -1,6 +1,11 @@
 import numpy as np
 
-from chargescape.optimize.facility import capacitated_mclp, greedy_mclp, robust_capacitated_mclp
+from chargescape.optimize.facility import (
+    capacitated_mclp,
+    evaluate_plan,
+    greedy_mclp,
+    robust_capacitated_mclp,
+)
 
 
 def _instance():
@@ -47,3 +52,12 @@ def test_robust_picks_site_good_in_all_scenarios():
     r = robust_capacitated_mclp(scen, w, tt, 5, np.ones(3), np.full(3, 1000.0), budget=1)
     assert r.selected == [2]
     assert r.status == "Optimal"
+
+
+def test_evaluate_plan_matches_milp_and_respects_capacity():
+    tt, d = _instance()
+    r = capacitated_mclp(d, tt, radius_min=5, cost=np.ones(3), capacity=np.array([100, 100, 30.0]), budget=3)
+    assert abs(evaluate_plan(r.selected, d, tt, 5, np.array([100, 100, 30.0])) - r.covered_demand) < 1e-6
+    # the same plan under doubled demand is capped by capacity: 40 + 40 from the first two, 30 from the third
+    assert abs(evaluate_plan([0, 1, 2], d * 2, tt, 5, np.array([100, 100, 30.0])) - 110) < 1e-6
+    assert evaluate_plan([], d, tt, 5, np.ones(3)) == 0.0

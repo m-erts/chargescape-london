@@ -25,11 +25,12 @@ html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,
 body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
 body.embed .panel{padding:6px 8px;max-width:none}
 body.embed .panel:not(:has(button)){display:none}
-body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px}
+body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px;max-width:47%}
+body.embed .lg.sub{display:none}
 </style></head><body>
 <div id="map"></div>
-<div class="panel"><span class="status model">model · optimisation</span><h1>Where the next hubs go</h1><p>Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity per hub, primary-substation headroom filter. Grey: demand today's network does not serve at an acceptable wait. Switch budgets and solutions.</p><div class="btns" data-group="budget"><button data-v="5">£5M</button><button data-v="10">£10M</button><button data-v="20" class="on">£20M</button><button data-v="40">£40M</button></div><div class="btns" data-group="model"><button data-v="all" class="on">both</button><button data-v="p50">P50 solution</button><button data-v="robust">robust</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
-<div class="legend" ><b>Unmet rapid demand, sessions/day</b><div class="lg"><i style="background:#f7f7f7"></i>< 0.1</div><div class="lg"><i style="background:#d9d9d9"></i>0.1 – 0.3</div><div class="lg"><i style="background:#bdbdbd"></i>0.3 – 0.5</div><div class="lg"><i style="background:#969696"></i>0.5 – 0.9</div><div class="lg"><i style="background:#636363"></i>0.9 – 1.7</div><div class="lg"><i style="background:#252525"></i>≥ 1.7</div></div><div class="legend right" ><b>Selected 4 × 150 kW hubs</b><div class="lg"><i style="background:#e4572e;border-radius:50%;"></i>P50 solution</div><div class="lg"><i style="background:#1b4965;border-radius:50%;"></i>robust over P10/P50/P90</div><div class="lg">£5M: 12 hubs (P50), 12 (robust)</div><div class="lg">£10M: 25 hubs (P50), 25 (robust)</div><div class="lg">£20M: 51 hubs (P50), 51 (robust)</div><div class="lg">£40M: 98 hubs (P50), 102 (robust)</div></div>
+<div class="panel"><span class="status model">model · optimisation</span><h1>Where the next hubs go</h1><p>Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity, substation-headroom filter. A plan is solved for P10, P50 and P90 demand and each is tested under the others; the recommended plan has the smallest worst-case regret. Grey: demand today's network does not serve at an acceptable wait.</p><div class="btns" data-group="budget"><button data-v="5">£5M</button><button data-v="10">£10M</button><button data-v="20" class="on">£20M</button><button data-v="40">£40M</button></div><div class="btns" data-group="model"><button data-v="rec" class="on">recommended</button><button data-v="p10">P10 plan</button><button data-v="p50">P50 plan</button><button data-v="p90">P90 plan</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
+<div class="legend" ><b>Unmet rapid demand, sessions/day</b><div class="lg"><i style="background:#f7f7f7"></i>< 0.1</div><div class="lg"><i style="background:#d9d9d9"></i>0.1 – 0.3</div><div class="lg"><i style="background:#bdbdbd"></i>0.3 – 0.5</div><div class="lg"><i style="background:#969696"></i>0.5 – 0.9</div><div class="lg"><i style="background:#636363"></i>0.9 – 1.7</div><div class="lg"><i style="background:#252525"></i>≥ 1.7</div></div><div class="legend right" ><b>4 × 150 kW hubs</b><div class="lg"><i style="background:#0c7c70;border-radius:50%;"></i>robust core — all three scenario plans agree (same or adjacent hex)</div><div class="lg"><i style="background:#e4572e;border-radius:50%;"></i>outside the robust core</div><div class="lg sub">£5M: P10 plan recommended · 12 hubs · core 5</div><div class="lg sub">£10M: P10 plan recommended · 25 hubs · core 12</div><div class="lg sub">£20M: P10 plan recommended · 51 hubs · core 22</div><div class="lg sub">£40M: P90 plan recommended · 96 hubs · core 71</div></div>
 <div class="note">Basemap unavailable — showing data layers on a plain background.</div>
 <script>
 const EMBED = new URLSearchParams(location.search).has('embed') || window.self !== window.top;
@@ -62,16 +63,18 @@ if (EMBED) {
   addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'f', 'F'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
 }
 
-let BUDGET = 20, MODEL = 'all';
-function applyFilter() { const f = ['all', ['==', ['get', 'budget'], BUDGET]]; if (MODEL !== 'all') f.push(['==', ['get', 'model'], MODEL]); map.setFilter('hubs', f); }
+let BUDGET = 20, MODEL = 'rec';
+function applyFilter() { const which = MODEL === 'rec' ? ['==', ['get', 'recommended'], 1] : ['==', ['get', 'model'], MODEL];
+  map.setFilter('hubs', ['all', ['==', ['get', 'budget'], BUDGET], which]); }
 function addLayers() {
   map.addSource('hex', {type: 'geojson', data: layer('hex_r8')});
   map.addSource('hubs', {type: 'geojson', data: layer('hubs_all_budgets')});
   map.addLayer({id: 'hex', type: 'fill', source: 'hex', paint: {'fill-color': ["step", ["coalesce", ["get", "unmet"], 0], "#f7f7f7", 0.15, "#d9d9d9", 0.33, "#bdbdbd", 0.54, "#969696", 0.86, "#636363", 1.71, "#252525"], 'fill-opacity': 0.62, 'fill-outline-color': 'rgba(255,255,255,0.35)'}});
-  map.addLayer({id: 'hubs', type: 'circle', source: 'hubs', paint: {'circle-radius': ['match', ['get', 'model'], 'p50', 8, 5.5], 'circle-color': ['match', ['get', 'model'], 'p50', '#e4572e', '#1b4965'], 'circle-opacity': 0.92, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
+  map.addLayer({id: 'hubs', type: 'circle', source: 'hubs', paint: {'circle-radius': 7.5, 'circle-color': ['case', ['==', ['get', 'core'], 1], '#0c7c70', '#e4572e'],
+    'circle-opacity': 0.92, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}});
   applyFilter();
   map.on('click', 'hubs', e => { const p = e.features[0].properties;
-    popup(`<b>Hub, ${p.model === 'p50' ? 'P50 solution' : 'robust solution'}</b> · ${p.borough}<br>4 × 150 kW, capex £${(p.cost_gbp / 1e6).toFixed(2)}M (budget £${p.budget}M)<br>Unmet demand assigned: <b>${p.sessions_day_assigned}</b> sessions/day`, e.lngLat); });
+    popup(`<b>Hub · plan optimised for ${p.model.toUpperCase()} demand${p.recommended === 1 ? ' (recommended)' : ''}</b><br>${p.core === 1 ? 'Robust core: all three scenario plans put a hub here or next door' : 'Outside the robust core'}<br>${p.borough} · 4 × 150 kW, capex £${(p.cost_gbp / 1e6).toFixed(2)}M (budget £${p.budget}M)<br>Unmet demand assigned: <b>${p.sessions_day_assigned}</b> sessions/day`, e.lngLat); });
   map.on('click', 'hex', e => { if (map.queryRenderedFeatures(e.point, {layers: ['hubs']}).length) return; const p = e.features[0].properties;
     popup(`<b>${p.borough}</b><br>Unmet or queue-constrained rapid demand: <b>${p.unmet}</b> sessions/day<br>Expected wait today: ${p.wait} min`, e.lngLat); });
   pointer('hubs');

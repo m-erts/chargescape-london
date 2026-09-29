@@ -127,7 +127,8 @@ html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,
 body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
 body.embed .panel{padding:6px 8px;max-width:none}
 body.embed .panel:not(:has(button)){display:none}
-body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px}
+body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px;max-width:47%}
+body.embed .lg.sub{display:none}
 </style></head><body>
 <div id="map"></div>
 <div class="panel"><span class="status __STATUS_CLASS__">__STATUS__</span><h1>__TITLE__</h1><p>__SUBTITLE__</p>__CONTROLS__<div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="__REPO__">github</a></div></div>
@@ -268,7 +269,21 @@ def _hubs_layer(hexes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     hubs = gpd.GeoDataFrame(sel.merge(cent, on="h3", how="left"), geometry="geometry", crs=4326)
     hubs["sessions_day_assigned"] = hubs["sessions_day_assigned"].round(1)
     hubs["budget"] = hubs["budget_m"].astype(int)
-    return hubs[["h3", "model", "borough", "budget", "sessions_day_assigned", "cost_gbp", "geometry"]]
+    for c in ("core", "recommended"):
+        hubs[c] = hubs[c].fillna(False).astype(int) if c in hubs else 0
+    return hubs[
+        [
+            "h3",
+            "model",
+            "borough",
+            "budget",
+            "core",
+            "recommended",
+            "sessions_day_assigned",
+            "cost_gbp",
+            "geometry",
+        ]
+    ]
 
 
 # ----------------------------------------------------------------------------- pages
@@ -396,18 +411,28 @@ def page_siting(h: gpd.GeoDataFrame, hubs: gpd.GeoDataFrame) -> None:
     br = _breaks(h["unmet"])
     budgets = sorted(hubs["budget"].unique())
     default = 20 if 20 in budgets else budgets[-1]
-    counts = hubs.groupby(["budget", "model"]).size().to_dict()
+    rec = hubs[hubs.recommended == 1]
+    summary = {
+        b: (
+            rec[rec.budget == b].model.iloc[0].upper() if (rec.budget == b).any() else "–",
+            int((rec.budget == b).sum()),
+            int(rec[rec.budget == b].core.sum()),
+        )
+        for b in budgets
+    }
     body = f"""
-let BUDGET = {default}, MODEL = 'all';
-function applyFilter() {{ const f = ['all', ['==', ['get', 'budget'], BUDGET]]; if (MODEL !== 'all') f.push(['==', ['get', 'model'], MODEL]); map.setFilter('hubs', f); }}
+let BUDGET = {default}, MODEL = 'rec';
+function applyFilter() {{ const which = MODEL === 'rec' ? ['==', ['get', 'recommended'], 1] : ['==', ['get', 'model'], MODEL];
+  map.setFilter('hubs', ['all', ['==', ['get', 'budget'], BUDGET], which]); }}
 function addLayers() {{
   map.addSource('hex', {{type: 'geojson', data: layer('hex_r8')}});
   map.addSource('hubs', {{type: 'geojson', data: layer('hubs_all_budgets')}});
   map.addLayer({{id: 'hex', type: 'fill', source: 'hex', paint: {{'fill-color': {json.dumps(_step_expr("unmet", br, GREYS))}, 'fill-opacity': 0.62, 'fill-outline-color': 'rgba(255,255,255,0.35)'}}}});
-  map.addLayer({{id: 'hubs', type: 'circle', source: 'hubs', paint: {{'circle-radius': ['match', ['get', 'model'], 'p50', 8, 5.5], 'circle-color': ['match', ['get', 'model'], 'p50', '#e4572e', '#1b4965'], 'circle-opacity': 0.92, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}}}});
+  map.addLayer({{id: 'hubs', type: 'circle', source: 'hubs', paint: {{'circle-radius': 7.5, 'circle-color': ['case', ['==', ['get', 'core'], 1], '#0c7c70', '#e4572e'],
+    'circle-opacity': 0.92, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5}}}});
   applyFilter();
   map.on('click', 'hubs', e => {{ const p = e.features[0].properties;
-    popup(`<b>Hub, ${{p.model === 'p50' ? 'P50 solution' : 'robust solution'}}</b> · ${{p.borough}}<br>4 × 150 kW, capex £${{(p.cost_gbp / 1e6).toFixed(2)}}M (budget £${{p.budget}}M)<br>Unmet demand assigned: <b>${{p.sessions_day_assigned}}</b> sessions/day`, e.lngLat); }});
+    popup(`<b>Hub · plan optimised for ${{p.model.toUpperCase()}} demand${{p.recommended === 1 ? ' (recommended)' : ''}}</b><br>${{p.core === 1 ? 'Robust core: all three scenario plans put a hub here or next door' : 'Outside the robust core'}}<br>${{p.borough}} · 4 × 150 kW, capex £${{(p.cost_gbp / 1e6).toFixed(2)}}M (budget £${{p.budget}}M)<br>Unmet demand assigned: <b>${{p.sessions_day_assigned}}</b> sessions/day`, e.lngLat); }});
   map.on('click', 'hex', e => {{ if (map.queryRenderedFeatures(e.point, {{layers: ['hubs']}}).length) return; const p = e.features[0].properties;
     popup(`<b>${{p.borough}}</b><br>Unmet or queue-constrained rapid demand: <b>${{p.unmet}}</b> sessions/day<br>Expected wait today: ${{p.wait}} min`, e.lngLat); }});
   pointer('hubs');
@@ -417,18 +442,22 @@ buttons('model', v => {{ MODEL = v; if (map.getLayer('hubs')) applyFilter(); }})
 """
     on = ' class="on"'
     bbtn = "".join(f'<button data-v="{b}"{on if b == default else ""}>£{b}M</button>' for b in budgets)
-    controls = f'<div class="btns" data-group="budget">{bbtn}</div><div class="btns" data-group="model"><button data-v="all" class="on">both</button><button data-v="p50">P50 solution</button><button data-v="robust">robust</button></div>'
-    lines = [
-        f"£{b}M: {counts.get((b, 'p50'), 0)} hubs (P50), {counts.get((b, 'robust'), 0)} (robust)"
-        for b in budgets
-    ]
+    controls = f'<div class="btns" data-group="budget">{bbtn}</div><div class="btns" data-group="model"><button data-v="rec" class="on">recommended</button><button data-v="p10">P10 plan</button><button data-v="p50">P50 plan</button><button data-v="p90">P90 plan</button></div>'
+    lines = "".join(
+        f'<div class="lg sub">£{b}M: {q} plan recommended · {n} hubs · core {c}</div>'
+        for b, (q, n, c) in summary.items()
+    )
     legend = _legend_html("Unmet rapid demand, sessions/day", br, GREYS) + _swatches(
-        "Selected 4 × 150 kW hubs", [("P50 solution", "#e4572e"), ("robust over P10/P50/P90", "#1b4965")]
-    ).replace("</div></div>", "</div>" + "".join(f'<div class="lg">{t}</div>' for t in lines) + "</div>", 1)
+        "4 × 150 kW hubs",
+        [
+            ("robust core — all three scenario plans agree (same or adjacent hex)", "#0c7c70"),
+            ("outside the robust core", "#e4572e"),
+        ],
+    ).replace("</div></div>", "</div>" + lines + "</div>", 1)
     _page(
         "siting_hubs",
         "Where the next hubs go",
-        "Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity per hub, primary-substation headroom filter. Grey: demand today's network does not serve at an acceptable wait. Switch budgets and solutions.",
+        "Capacitated maximal-covering MILP (HiGHS): 4 × 150 kW hubs, 8-minute drive-time coverage, Erlang-C capacity, substation-headroom filter. A plan is solved for P10, P50 and P90 demand and each is tested under the others; the recommended plan has the smallest worst-case regret. Grey: demand today's network does not serve at an acceptable wait.",
         "model · optimisation",
         body,
         legend,

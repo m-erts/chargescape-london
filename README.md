@@ -30,7 +30,7 @@ ChargeScape does all four for London, on a laptop, from open sources.
 | Where are London's chargers relative to EV owners without driveways? | Supply audit on 13k de-duplicated sites: Moran's I, Getis-Ord Gi* hot spots, drive-time gaps on the road network | [01](notebooks/01_supply_audit.ipynb) |
 | How much public energy will each 0.74 km² hex need, now and in 2030? | Structural Monte Carlo demand surface (P10/P50/P90) with a taxi & private-hire layer; UKPN DFES 2030 pathways; checked against observed aggregates | [02](notebooks/02_demand_surface.ipynb) |
 | Which sites absorb the demand, and where do queues form? How much of a new hub's demand is new? | Multinomial-logit station choice on drive times, Erlang-C queues per site, new vs cannibalised demand for any candidate | [03](notebooks/03_choice_and_queues.ipynb) |
-| Given a budget, where do the next 4 × 150 kW hubs go, and what if the assumptions are wrong? | Capacitated maximal-covering MILP with grid-headroom filter, robust version over demand scenarios, sensitivity to nine changed assumptions | [04](notebooks/04_siting.ipynb) |
+| Given a budget, where do the next 4 × 150 kW hubs go, and what if the assumptions are wrong? | Capacitated maximal-covering MILP with grid-headroom filter; a plan per demand scenario, each evaluated exactly under the others (regret, robust core); sensitivity to nine changed assumptions | [04](notebooks/04_siting.ipynb) |
 | Do context features explain *observed* utilisation anywhere, and does that transfer? | LightGBM on chargers with open session logs in four cities; random vs leave-city-out validation | [05](notebooks/05_utilisation_transfer.ipynb) |
 
 ## Headline results (Greater London, H3 resolution 8)
@@ -38,16 +38,17 @@ ChargeScape does all four for London, on a laptop, from open sources.
 | | Value | Source / status |
 |---|---|---|
 | Public chargers (DfT, 1 July 2026) | 31,371, of which 2,533 (8.1 %) are 50 kW+ | DfT EVCI · observed |
-| Charging sites mapped | | Open Charge Map, OpenStreetMap, NCR 2021 · observed |
+| Charging sites mapped | 13,174 after de-duplicating Open Charge Map (12,519), OSM (358) and the 2021 registry (297) within 50 m; 632 rapid sites | Open Charge Map, OpenStreetMap, NCR 2021 · observed |
 | Plug-in cars kept in London (March 2026) | 300k: 177k private-kept, 120k company-kept; 63 % battery-electric | DfT VEH0145 by LSOA · observed |
-| Public charging demand 2026 | | structural model on observed inputs |
-| Demand 2030 (DFES pathways) | | model + UKPN DFES 2026 |
-| Implied rapid sessions per charger per day | | cross-check, notebook 02 |
-| Rapid network today | | choice + queue model |
-| New hub cannibalisation | | logit with outside option, notebook 03 |
-| New hubs, £20M budget | | MILP, notebook 04 |
-| Siting sensitivity | | 9 changed assumptions, notebook 04 |
-| Context features vs observed utilisation | | LightGBM, notebook 05 · observed target |
+| Public charging demand 2026 | **285 GWh/yr** P50 (P10–P90 216–361); near-home 78, destination 55, taxi & private hire 152 | structural model on observed inputs |
+| Demand 2030 (DFES pathways) | 1,104 / 1,350 / 1,407 GWh/yr (low / mid / high) | model + UKPN DFES 2026 |
+| Implied rapid sessions per charger per day | ≈13 — consistent with TfL's observed 34 % occupancy of rapid units and 38-minute sessions | cross-check, notebook 02 |
+| Rapid network today | 632 sites, 2,860 ports after calibration (median factor ×1.6); median 24 h utilisation 15 %; 348 sites where P(wait) > 0.5 at the peak hour | choice + queue model |
+| New hub cannibalisation | 64–75 % of a new hub's sessions are taken from existing sites (hub at the hex with most unmet demand, Hillingdon; 50 kW × 2 to 300 kW × 8) | logit with outside option, notebook 03 |
+| New hubs, £20M budget | 51 hubs serve 63 % of unmet or queue-constrained rapid demand (1,699 of 2,686 sessions/day), proven optimal; £40M → 98 hubs, 86 %. Capacity-bound: ≈33 sessions/day per hub at P(wait) ≤ 15 %; greedy uncapacitated coverage overstates it by up to 4.7× at small budgets | MILP, notebook 04 |
+| Planning under demand uncertainty | at £5–20M the plan optimised for pessimistic (P10) demand has the smallest maximum regret (0 sessions/day at £20M): hubs placed where even low demand is dense fill up under any scenario; at £40M the P90 plan is best. Robust core at £20M: 22 of 51 hubs chosen in the same or an adjacent hex by all three scenario plans | scenario plans + exact cross-evaluation, notebook 04 |
+| Siting sensitivity | across 9 changed assumptions a median 75 % of hubs stay in the same or an adjacent hex (41 % in exactly the same hex); unmet demand ranges 2,495–2,972 sessions/day | 9 changed assumptions, notebook 04 |
+| Context features vs observed utilisation | 204 chargers in 4 cities: R² 0.70 with random 5-fold CV, **-0.25 leave-city-out**; within-city ranking Spearman -0.34 to 0.64 | LightGBM, notebook 05 · observed target |
 
 Every value above is generated from the committed tables by `make report` (see `reports/tables/key_numbers.json`); nothing is typed in by hand.
 
@@ -59,7 +60,7 @@ flowchart LR
   B --> C[Structural demand<br/>Monte Carlo P10/P50/P90]
   C --> D[Station choice<br/>logit on OSM drive times]
   D --> E[Erlang-C queues<br/>per site]
-  E --> F[Capacitated + robust MILP<br/>budget · capacity · grid]
+  E --> F[Capacitated MILP per demand scenario<br/>budget · capacity · grid · regret]
   F --> G[Sensitivity · maps · slides<br/>post-hoc test plan]
   H[Open session logs<br/>Dundee · PKC · Palo Alto · Boulder] --> I[Utilisation model<br/>leave-city-out CV] --> G
 ```
@@ -70,7 +71,7 @@ Design choices that matter (full text in [`docs/methodology.md`](docs/methodolog
 * **Demand is modelled, then checked against observed aggregates** (DfT charger counts × TfL occupancy; per-charger throughput in open session logs), because London publishes no charger-level usage.
 * **Drive times, not buffers**: igraph shortest paths on the 131k-node OpenStreetMap drive graph — the 2/5/10-minute logic operators actually use.
 * **Supply calibrated to official totals**: Open Charge Map, OSM and the 2021 registry are merged and de-duplicated; ports still missing are closed per borough against DfT's 50 kW+ counts (the factor is stored per site).
-* **Uncertainty reaches the decision**: the robust MILP picks one set of hubs that performs across P10/P50/P90, and a sensitivity run shows which conclusions survive changed assumptions.
+* **Uncertainty reaches the decision**: a plan is solved for each demand scenario (P10/P50/P90) and evaluated exactly under the others — regret, plus a robust core of hubs every scenario agrees on — and a sensitivity run shows which conclusions survive changed assumptions.
 * **Optimality is reported, not assumed**: every MILP records its HiGHS gap.
 * **Spatial cross-validation by default**: random K-fold is shown only to expose its optimism.
 
@@ -81,7 +82,7 @@ Design choices that matter (full text in [`docs/methodology.md`](docs/methodolog
 | Spatial | H3, GeoPandas, Shapely, pyproj | equal-area hex grid for siting; area-weighted interpolation from census units |
 | Network | OSMnx, igraph | many-to-many drive times on the London graph in seconds, no routing server to run |
 | Statistics & ML | esda, libpysal, LightGBM, scikit-learn | Moran's I, Gi*, LISA; quantile gradient boosting; leave-group-out CV |
-| Optimisation | SciPy `milp` (HiGHS) | sparse capacitated and robust MCLP without a commercial solver |
+| Optimisation | SciPy `milp` / `linprog` (HiGHS) | sparse capacitated MCLP and exact fixed-plan evaluation, no commercial solver |
 | Queues & choice | NumPy (own code, unit-tested) | Erlang C, multinomial logit, incremental demand decomposition |
 | Delivery | MapLibre GL JS, matplotlib, GitHub Pages | offline-capable web maps, static slides and project page |
 | Quality | pytest, ruff, GitHub Actions | tests against closed forms and toy optima; CI on Python 3.11 and 3.12 |
@@ -127,7 +128,7 @@ tests/         unit tests for queues, choice, MILPs, grid, demand, spatial stati
 
 ## Validation, limitations and how this could be proven wrong
 
-What is validated: consistency of modelled totals with observed supply and occupancy; implied throughput per charger against TfL and Dundee; spatial autocorrelation diagnostics; out-of-city transfer of a utilisation model (it fails — reported as a result); siting sensitivity; MIP optimality gaps.
+What is validated: consistency of modelled totals with observed supply and occupancy; implied throughput per charger against TfL and Dundee; spatial autocorrelation diagnostics; out-of-city transfer of a utilisation model (it fails — reported as a result); regret of the chosen plan under other demand scenarios; siting sensitivity; MIP optimality gaps.
 
 Known limitations:
 

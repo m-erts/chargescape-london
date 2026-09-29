@@ -25,7 +25,8 @@ html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,
 body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
 body.embed .panel{padding:6px 8px;max-width:none}
 body.embed .panel:not(:has(button)){display:none}
-body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px}
+body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px;max-width:47%}
+body.embed .lg.sub{display:none}
 </style></head><body>
 <div id="map"></div>
 <div class="panel"><span class="status model">model on observed inputs</span><h1>Public charging demand</h1><p>Bottom-up Monte Carlo model: EV stock × km × kWh/km × share charged publicly (depends on off-street parking), plus destination and taxi/private-hire demand. Height and colour: MWh per year per H3 hex. P10 and P90 use the 2026 classes, so the colour shift is the uncertainty.</p><div class="btns" data-group="demand"><button data-v="demand_p10">P10</button><button data-v="demand_p50" class="on">P50 · 2026</button><button data-v="demand_p90">P90</button><button data-v="demand_2030">2030</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>

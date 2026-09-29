@@ -47,8 +47,8 @@ The split between `interim` and `processed` is the reproducibility contract: eve
 | `models.choice` | multinomial logit utilities, stable softmax with outside option, incremental vs cannibalised demand | pure functions |
 | `models.queueing` | Erlang C: utilisation, P(wait), mean wait, ports for a service level | pure functions |
 | `models.allocation_pipeline` | choice + queues on today's rapid network, borough calibration of ports, candidate cannibalisation | → `hex_service`, `rapid_sites_load` |
-| `optimize.facility` | sparse capacitated MCLP and two-stage robust MCLP (SciPy / HiGHS), greedy baseline | pure functions |
-| `optimize.siting_pipeline` | candidates, unmet demand, hub capacity from Erlang C, budget sweep | → `siting_*`, `reports/tables` |
+| `optimize.facility` | sparse capacitated MCLP (SciPy / HiGHS), exact fixed-plan evaluation LP, greedy baseline; a two-stage robust MCLP kept for small instances (it does not close its gap on London) | pure functions |
+| `optimize.siting_pipeline` | candidates, unmet demand, hub capacity from Erlang C, budget sweep; plan per demand scenario, cross-evaluation, regret, robust core | → `siting_*`, `reports/tables` |
 | `optimize.sensitivity` | re-solves at £20M under changed behavioural and service assumptions | → `reports/tables/sensitivity_*.csv` |
 | `models.ml`, `features.spatial_stats` | spatial CV, quantile LightGBM, Moran's I, Gi*, LISA | pure functions |
 | `viz.figures`, `viz.export_maplibre` | matplotlib figures; MapLibre GL pages with embedded data | → `reports/figures`, `docs/maps` |
@@ -63,7 +63,7 @@ The split between `interim` and `processed` is the reproducibility contract: eve
 | Demand | **Structural Monte Carlo** | No charger-level usage is published for London, so a supervised model would learn where chargers already are. A structural model makes every assumption a named prior, produces intervals, and is checked against observed aggregates. |
 | Choice | **Multinomial logit** with an outside option | Equivalent to a calibrated Huff model, but the outside option separates new demand from demand taken from existing sites. |
 | Queues | **Erlang C** (M/M/c) | Closed form, vectorised over 632 sites, unit-tested against M/M/1. Discrete-event simulation with empirical service times is the natural upgrade. |
-| Optimisation | **`scipy.optimize.milp` (HiGHS)** | No external solver licence or binary. The model is built as a sparse matrix; adding the linking constraints y<sub>ij</sub> ≤ x<sub>j</sub> tightened the LP relaxation so the £10M instance went from a 20-second time-out to a proven optimum in 4.6 s. |
+| Optimisation | **`scipy.optimize.milp` / `linprog` (HiGHS)** | No external solver licence or binary. The model is built as a sparse matrix; adding the linking constraints y<sub>ij</sub> ≤ x<sub>j</sub> tightened the LP relaxation so the £10M instance went from a 20-second time-out to a proven optimum in 4.6 s. Every solve records its MIP gap — which is how a two-stage robust formulation was caught returning an unusable incumbent and replaced by exact scenario cross-evaluation. |
 | ML | **LightGBM + spatial CV** | Strong tabular baseline with quantile objectives; leave-group-out CV is the default because random folds overstate skill on autocorrelated data. |
 | Spatial statistics | **esda / libpysal** | Reference implementations of Moran's I, Getis-Ord Gi* and LISA with permutation inference. |
 | Maps | **MapLibre GL JS 4.7** (vendored) | Open-source, no token, WebGL extrusions and data-driven styling. Data is embedded as JS so the pages also work from disk, and they fall back to a plain background when the basemap is unreachable. |
@@ -78,7 +78,7 @@ The split between `interim` and `processed` is the reproducibility contract: eve
 | `make features` | ~1 min (hex table 3 s; London station context the rest) |
 | demand Monte Carlo (500 draws × 4 scenarios) | ~10 s |
 | choice + queues on 632 sites | ~30 s |
-| siting sweep, 4 budgets, capacitated + robust | ~12 min |
+| siting sweep, 4 budgets × 3 scenario plans + cross-evaluation | a few minutes |
 | sensitivity, 10 variants at £20M | ~20 min |
 | notebooks 01–05 | ~3 min |
 
