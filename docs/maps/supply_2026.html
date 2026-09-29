@@ -1,55 +1,120 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChargeScape London · Who has chargers, who has EVs</title>
+<title>Who has chargers, who has EVs | ChargeScape London</title>
+<meta name="description" content="Public charging sites from Open Charge Map, OpenStreetMap and the 2021 national registry, de-duplicated within 50 m, over private plug-in cars per household or the share of households in flats. Drivers in flats depend on public charging.">
+<script>(function(){var t=new URLSearchParams(location.search).get('theme');
+if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('cs-theme')}catch(e){t=null}}
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);})();
+function csIsDark(){var a=document.documentElement.getAttribute('data-theme');
+return a?a==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function csToken(n){return getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();}</script>
 <link href="../vendor/maplibre-gl-4.7.1/maplibre-gl.css" rel="stylesheet"><script src="../vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script><script src="data/hex_r8.js"></script><script src="data/charging_sites.js"></script>
 <style>
-html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1a2027;background:#eef0ec}
-#map{position:absolute;inset:0}
-.panel{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:12px 14px;border-radius:8px;max-width:370px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.panel h1{font:600 16px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
-.panel p{margin:0 0 8px;color:#4b5763;font-size:12.5px}
-.status{display:inline-block;font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:10px;background:#e6f2f0;color:#0a665c;margin-bottom:8px}
-.status.model{background:#fdeee8;color:#a8401f}
-.nav a{font-size:12px;color:#0c7c70;margin-right:10px}
-.legend{position:absolute;bottom:30px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.legend.right{left:auto;right:12px;bottom:40px}
-.legend b{display:block;margin-bottom:6px}
-.lg{display:flex;align-items:center;gap:8px;margin:2px 0}
-.lg i{display:inline-block;width:16px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}
-.btns{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
-.btns button{font:12px/1 inherit;padding:5px 9px;border:1px solid #cfd6dc;border-radius:14px;background:#fff;cursor:pointer;color:#1a2027}
-.btns button.on{background:#0c7c70;color:#fff;border-color:#0c7c70}
-.btns button:focus-visible{outline:2px solid #0c7c70;outline-offset:1px}
-.maplibregl-popup-content{font-size:12.5px;line-height:1.45;padding:10px 12px}
-.note{position:absolute;right:12px;top:12px;z-index:6;background:#fff8e6;border:1px solid #f0d9a6;border-radius:6px;padding:6px 9px;font-size:12px;display:none}
-.nobasemap .note{display:block}
-body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
-body.embed .panel{padding:6px 8px;max-width:none}
+@font-face{font-family:"Geist";src:url("../vendor/geist-1.4.2/Geist-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Geist Mono";src:url("../vendor/geist-1.4.2/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+:root{color-scheme:light;--bg:#FFFFFF;--fg:#111111;--muted:#666666;--neutral:#888888;--border:#EAEAEA;--surface:#FAFAFA;--accent:#0070F3;--r1:#F2F2F2;--r2:#D9D9D9;--r3:#B3B3B3;--r4:#858585;--r5:#4D4D4D;--r6:#111111;--radius:0px;--ease-out:cubic-bezier(0.23,1,0.32,1);--z-map-ui:10;--z-bar:20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:"Geist","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.mono,code,kbd,td.num,th.num{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--neutral);text-underline-offset:0.2em;transition:text-decoration-color 150ms ease}
+@media (hover:hover) and (pointer:fine){a:hover{text-decoration-color:var(--fg)}}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms !important;animation-duration:0.01ms !important}}
+
+html,body{height:100%}
+body{font-size:13px;line-height:1.45;overflow:hidden}
+#map{position:absolute;inset:0;background:var(--surface)}
+.panel{position:absolute;top:0;left:0;z-index:var(--z-map-ui);background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:16px;max-width:380px}
+.panel h1{font-size:17px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;margin:0 0 6px;text-wrap:balance}
+.panel p{margin:0 0 12px;color:var(--muted);text-wrap:pretty}
+.status{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--border);padding:2px 6px;margin:0 0 10px}
+.controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg)}
+.seg button{appearance:none;border:0;border-right:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;line-height:1;padding:8px 10px;cursor:pointer;transition:background-color 150ms ease,color 150ms ease,transform 150ms var(--ease-out)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:active{transform:scale(0.97)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@media (hover:hover) and (pointer:fine){.seg button[aria-pressed="false"]:hover{color:var(--fg);background:var(--surface)}}
+.links{display:flex;gap:14px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend{position:absolute;left:0;bottom:0;z-index:var(--z-map-ui);display:flex;background:var(--bg);border-top:1px solid var(--border);border-right:1px solid var(--border);font-size:12px}
+.lgroup{padding:12px 16px}
+.lgroup[hidden]{display:none}
+.lgroup + .lgroup{border-left:1px solid var(--border)}
+.lgroup h2{font-size:12px;font-weight:500;margin:0 0 8px;color:var(--fg)}
+.lgroup ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.lgroup li{display:flex;align-items:center;gap:8px;color:var(--muted);white-space:nowrap}
+.lnote{margin:8px 0 0;color:var(--muted)}
+.sw{width:18px;height:10px;border:1px solid var(--border);flex:none}
+.sw.r1{background:var(--r1)}.sw.r2{background:var(--r2)}.sw.r3{background:var(--r3)}.sw.r4{background:var(--r4)}.sw.r5{background:var(--r5)}.sw.r6{background:var(--r6)}
+.mk{width:10px;height:10px;border-radius:50%;flex:none;margin:0 4px}
+.mk.slow{background:var(--neutral);width:5px;height:5px;margin:0 6.5px}
+.mk.fast{background:var(--fg);width:7px;height:7px;margin:0 5.5px}
+.mk.rapid{background:var(--accent)}
+.mk.ultra{background:var(--accent);box-shadow:0 0 0 1.5px var(--bg),0 0 0 3px var(--fg)}
+.mk.free{background:var(--r3)}
+.mk.busy{background:var(--accent)}
+.mk.core{background:var(--accent)}
+.mk.rest{background:var(--bg);box-shadow:inset 0 0 0 2px var(--fg)}
+.notice{position:absolute;top:0;right:56px;z-index:var(--z-map-ui);background:var(--bg);border:1px solid var(--border);border-top:0;padding:6px 10px;font-size:12px;color:var(--muted);display:none}
+.nobasemap .notice{display:block}
+.maplibregl-map{font-family:inherit}
+.maplibregl-ctrl-group{border-radius:var(--radius) !important;box-shadow:none !important;border:1px solid var(--border);background:var(--bg) !important;overflow:hidden}
+.maplibregl-ctrl-group button{background-color:var(--bg)}
+.maplibregl-ctrl-group button + button{border-top:1px solid var(--border)}
+.dark .maplibregl-ctrl-group .maplibregl-ctrl-icon,.dark .maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-ctrl-attrib,.maplibregl-ctrl-attrib.maplibregl-compact{background:var(--bg) !important;color:var(--muted);font-size:11px;border-radius:0;border:1px solid var(--border);margin:0 8px 8px 0}
+.maplibregl-ctrl-attrib.maplibregl-compact-show{padding-right:28px}
+.maplibregl-ctrl-attrib a{color:var(--muted)}
+.maplibregl-ctrl-scale{background:var(--bg);border-color:var(--fg);color:var(--fg);font-size:11px}
+.maplibregl-popup-content{background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:0;box-shadow:none;padding:10px 12px;font-size:12px;line-height:1.5}
+.maplibregl-popup-tip{display:none}
+.maplibregl-popup-content b{font-weight:600}
+.maplibregl-popup-content dl{display:grid;grid-template-columns:auto auto;gap:2px 14px;margin:6px 0 0}
+.maplibregl-popup-content dt{color:var(--muted)}
+.maplibregl-popup-content dd{margin:0;text-align:right}
+body.embed{font-size:clamp(10px,1.35vw,14px)}
+body.embed .panel{padding:10px;border-color:var(--border)}
+body.embed .panel h1,body.embed .panel p,body.embed .status,body.embed .links{display:none}
 body.embed .panel:not(:has(button)){display:none}
-body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px;max-width:47%}
-body.embed .lg.sub{display:none}
+body.embed .seg button{font-size:0.85em;padding:0.6em 0.8em}
+body.embed .legend{font-size:0.85em}
+body.embed .lgroup{padding:0.7em 1em}
+body.embed .lgroup h2{font-size:1em}
+body.embed .lnote{display:none}
+@media (max-width:640px){.panel{max-width:none;right:0;border-right:0}.legend{flex-direction:column;right:0;border-right:0}.lgroup + .lgroup{border-left:0;border-top:1px solid var(--border)}}
 </style></head><body>
 <div id="map"></div>
-<div class="panel"><span class="status ">observed</span><h1>Who has chargers, who has EVs</h1><p>Public charging sites (Open Charge Map ∪ OpenStreetMap ∪ 2021 registry, de-duplicated within 50 m) over private plug-in cars per household or the share of households in flats — the group that depends on public charging.</p><div class="btns" data-group="hex"><button data-v="piv_private_per_1000_hh" class="on">EVs per 1,000 hh</button><button data-v="share_flat">Share of flats</button><button data-v="none">Chargers only</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
-<div class="legend" data-legend="piv_private_per_1000_hh"><b>Private plug-in cars / 1,000 households (DfT 2026 Q1)</b><div class="lg"><i style="background:#eff3ff"></i>< 37.4</div><div class="lg"><i style="background:#c6dbef"></i>37.4 – 50.2</div><div class="lg"><i style="background:#9ecae1"></i>50.2 – 62.0</div><div class="lg"><i style="background:#6baed6"></i>62.0 – 73.6</div><div class="lg"><i style="background:#3182bd"></i>73.6 – 94.9</div><div class="lg"><i style="background:#08519c"></i>≥ 94.9</div></div><div class="legend" data-legend="share_flat" style="display:none"><b>Households in flats (Census 2021)</b><div class="lg"><i style="background:#fcfdbf"></i>< 0.1</div><div class="lg"><i style="background:#feb078"></i>0.1 – 0.2</div><div class="lg"><i style="background:#f1605d"></i>0.2 – 0.3</div><div class="lg"><i style="background:#b5367a"></i>0.3 – 0.5</div><div class="lg"><i style="background:#721f81"></i>0.5 – 0.6</div><div class="lg"><i style="background:#2c115f"></i>≥ 0.6</div></div><div class="legend right" ><b>Charging sites (13,174)</b><div class="lg"><i style="background:#9aa5b1;border-radius:50%;"></i>< 8 kW (lamp-post, slow AC)</div><div class="lg"><i style="background:#2a788e;border-radius:50%;"></i>8–49 kW (fast)</div><div class="lg"><i style="background:#f28e2b;border-radius:50%;"></i>50–149 kW (rapid)</div><div class="lg"><i style="background:#c0392b;border-radius:50%;"></i>≥ 150 kW (ultra-rapid)</div></div>
-<div class="note">Basemap unavailable — showing data layers on a plain background.</div>
+<div class="panel"><span class="status mono">observed</span><h1>Who has chargers, who has EVs</h1><p>Public charging sites from Open Charge Map, OpenStreetMap and the 2021 national registry, de-duplicated within 50 m, over private plug-in cars per household or the share of households in flats. Drivers in flats depend on public charging.</p><div class="controls"><div class="seg" role="group" aria-label="Hex layer" data-group="hex"><button type="button" data-v="piv_private_per_1000_hh" aria-pressed="true">EVs per 1,000 households</button><button type="button" data-v="share_flat" aria-pressed="false">Share of flats</button><button type="button" data-v="none" aria-pressed="false">Chargers only</button></div></div><nav class="links" aria-label="Project"><a href="index.html">All maps</a><a href="../slides/">Slides</a><a href="../index.html">Project</a><a href="https://github.com/m-erts/chargescape-london">GitHub</a></nav></div>
+<div class="legend"><div class="lgroup" data-legend="piv_private_per_1000_hh"><h2>Private plug-in cars per 1,000 households</h2><ul><li><i class="sw r1"></i><span class="mono">under 37.4</span></li><li><i class="sw r2"></i><span class="mono">37.4 to 50.2</span></li><li><i class="sw r3"></i><span class="mono">50.2 to 62.0</span></li><li><i class="sw r4"></i><span class="mono">62.0 to 73.6</span></li><li><i class="sw r5"></i><span class="mono">73.6 to 94.9</span></li><li><i class="sw r6"></i><span class="mono">94.9 and over</span></li></ul></div><div class="lgroup" data-legend="share_flat" hidden><h2>Share of households in flats</h2><ul><li><i class="sw r1"></i><span class="mono">under 0.1</span></li><li><i class="sw r2"></i><span class="mono">0.1 to 0.2</span></li><li><i class="sw r3"></i><span class="mono">0.2 to 0.3</span></li><li><i class="sw r4"></i><span class="mono">0.3 to 0.5</span></li><li><i class="sw r5"></i><span class="mono">0.5 to 0.6</span></li><li><i class="sw r6"></i><span class="mono">0.6 and over</span></li></ul></div><div class="lgroup"><h2>13,174 charging sites</h2><ul><li><i class="mk slow"></i><span>under 8 kW</span></li><li><i class="mk fast"></i><span>8 to 49 kW</span></li><li><i class="mk rapid"></i><span>50 to 149 kW</span></li><li><i class="mk ultra"></i><span>150 kW and over</span></li></ul></div></div>
+<div class="notice">Basemap unavailable. Data layers are shown on a plain background.</div>
 <script>
 const EMBED = new URLSearchParams(location.search).has('embed') || window.self !== window.top;
-if (EMBED) document.body.classList.add('embed');
-const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#eef0ec'}}]};
-const map = new maplibregl.Map({container: 'map', style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
-map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
-map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
+const DARK = csIsDark();
+document.body.classList.toggle('embed', EMBED);
+document.body.classList.toggle('dark', DARK);
+const T = {bg: csToken('bg'), fg: csToken('fg'), neutral: csToken('neutral'), accent: csToken('accent'), surface: csToken('surface')};
+const RAMP = [1, 2, 3, 4, 5, 6].map(i => csToken('r' + i));
+const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': T.surface}}]};
+const map = new maplibregl.Map({container: 'map', style: DARK ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json' : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
+map.addControl(new maplibregl.NavigationControl({showCompass: !EMBED, visualizePitch: true}), 'top-right');
+if (!EMBED) map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
 function layer(name) {
   const d = (window.CS_DATA || {})[name];
-  if (!d) { const b = document.createElement('div'); b.className = 'legend right'; b.style.top = '60px'; b.style.bottom = 'auto';
-    b.innerHTML = '<b>Data layer “' + name + '” did not load.</b>Open the GitHub Pages version or serve the folder: python -m http.server'; document.body.appendChild(b); }
+  if (!d) { const n = document.querySelector('.notice'); n.textContent = 'Data layer "' + name + '" did not load. Open the published page or serve the folder over http.'; n.style.display = 'block'; }
   return d || {type: 'FeatureCollection', features: []};
 }
-function popup(html, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '320px'}).setLngLat(lngLat).setHTML(html).addTo(map); }
+function steps(prop, breaks) { const e = ['step', ['coalesce', ['get', prop], 0], RAMP[0]]; breaks.forEach((b, i) => e.push(b, RAMP[i + 1])); return e; }
+function under() { const l = (map.getStyle().layers || []).find(x => x.type === 'symbol'); return l ? l.id : undefined; }
+function rows(pairs) { return '<dl>' + pairs.map(p => '<dt>' + p[0] + '</dt><dd class="mono">' + p[1] + '</dd>').join('') + '</dl>'; }
+function popup(title, pairs, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '340px', offset: 8}).setLngLat(lngLat).setHTML('<b>' + title + '</b>' + rows(pairs)).addTo(map); }
 function pointer(id) { map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); }
-function buttons(group, onPick) { document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(btn => btn.onclick = () => {
-  document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(x => x.classList.toggle('on', x === btn)); onPick(btn.dataset.v); }); }
-function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.style.display = el.dataset.legend === key ? '' : 'none'); }
+function buttons(group, onPick) { const all = document.querySelectorAll('.seg[data-group="' + group + '"] button');
+  all.forEach(btn => btn.addEventListener('click', () => { all.forEach(x => x.setAttribute('aria-pressed', x === btn ? 'true' : 'false')); onPick(btn.dataset.v); })); }
+function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.hidden = el.dataset.legend !== key); }
+function pct(x) { return Math.round(100 * (x || 0)) + '%'; }
 let added = false, styleReady = false, fitted = false;
 function ensureFit() { const c = map.getContainer(); if (fitted || c.clientWidth < 80 || c.clientHeight < 80) return;
   fitted = true; map.resize(); map.fitBounds([[-0.52, 51.28], [0.34, 51.7]], {padding: EMBED ? 8 : 30, duration: 0}); }
@@ -60,26 +125,29 @@ map.on('error', e => { const m = e && e.error ? String(e.error.message || e.erro
 setTimeout(() => { if (!added) useFallback('timeout'); }, 7000);
 if (EMBED) {
   map.keyboard.disable();
-  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'f', 'F'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
+  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'f', 'F', 't', 'T'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
 }
 
-const HEX = {piv_private_per_1000_hh: {br: [37.44, 50.24, 61.96, 73.63, 94.92], col: ["#eff3ff", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c"]}, share_flat: {br: [0.14, 0.24, 0.33, 0.46, 0.64], col: ["#fcfdbf", "#feb078", "#f1605d", "#b5367a", "#721f81", "#2c115f"]}};
-function stepExpr(prop) { const s = HEX[prop]; const e = ['step', ['coalesce', ['get', prop], 0], s.col[0]]; s.br.forEach((b, i) => e.push(b, s.col[i + 1])); return e; }
+const BR = {piv_private_per_1000_hh: [37.44, 50.24, 61.96, 73.63, 94.92], share_flat: [0.14, 0.24, 0.33, 0.46, 0.64]};
+let PROP = 'piv_private_per_1000_hh';
 function addLayers() {
   map.addSource('hex', {type: 'geojson', data: layer('hex_r8')});
   map.addSource('sites', {type: 'geojson', data: layer('charging_sites')});
-  map.addLayer({id: 'hex', type: 'fill', source: 'hex', paint: {'fill-color': stepExpr('piv_private_per_1000_hh'), 'fill-opacity': 0.55, 'fill-outline-color': 'rgba(255,255,255,0.3)'}});
+  map.addLayer({id: 'hex', type: 'fill', source: 'hex', layout: {visibility: PROP === 'none' ? 'none' : 'visible'}, paint: {'fill-color': steps(PROP === 'none' ? 'share_flat' : PROP, BR[PROP === 'none' ? 'share_flat' : PROP]), 'fill-opacity': 0.6, 'fill-outline-color': T.bg}}, under());
   map.addLayer({id: 'sites', type: 'circle', source: 'sites', paint: {
-    'circle-color': ['match', ['get', 'pclass'], 0, '#9aa5b1', 1, '#2a788e', 2, '#f28e2b', '#c0392b'],
-    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'pclass'], 0, 1.3, 1, 2, 2, 3.2, 4.2], 14, ['match', ['get', 'pclass'], 0, 4, 1, 5, 2, 7, 9]],
-    'circle-opacity': 0.9, 'circle-stroke-color': '#fff', 'circle-stroke-width': ['match', ['get', 'pclass'], 0, 0, 0.6]}});
+    'circle-color': ['match', ['get', 'pclass'], 0, T.neutral, 1, T.fg, T.accent],
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, ['match', ['get', 'pclass'], 0, 1.2, 1, 1.8, 2, 3, 4.2], 14, ['match', ['get', 'pclass'], 0, 3.5, 1, 5, 2, 7, 9]],
+    'circle-opacity': ['match', ['get', 'pclass'], 0, 0.75, 1],
+    'circle-stroke-color': ['match', ['get', 'pclass'], 3, T.fg, T.bg],
+    'circle-stroke-width': ['match', ['get', 'pclass'], 0, 0, 1, 0.5, 2, 1, 1.5]}});
   map.on('click', 'sites', e => { const p = e.features[0].properties;
-    popup(`<b>${p.operator}</b><br>${p.max_kw ?? '?'} kW · ${p.n_ports} point(s)<br>source: ${p.source}`, e.lngLat); });
+    popup(p.operator, [['Power', (p.max_kw == null ? 'not recorded' : p.max_kw + ' kW')], ['Charge points', p.n_ports], ['Source', p.source]], e.lngLat); });
   map.on('click', 'hex', e => { if (map.queryRenderedFeatures(e.point, {layers: ['sites']}).length) return; const p = e.features[0].properties;
-    popup(`<b>${p.borough}</b><br>Private plug-in cars per 1,000 households: <b>${p.piv_private_per_1000_hh}</b><br>Households in flats: ${Math.round(100 * p.share_flat)} %<br>Ports: ${p.ports_slow} slow · ${p.ports_rapid} rapid`, e.lngLat); });
+    popup(p.borough, [['Private plug-in cars per 1,000 households', p.piv_private_per_1000_hh], ['Households in flats', pct(p.share_flat)], ['Slow and fast ports', p.ports_slow], ['Rapid ports', p.ports_rapid]], e.lngLat); });
   pointer('sites');
 }
-buttons('hex', v => { if (v === 'none') { map.setLayoutProperty('hex', 'visibility', 'none'); showLegend('none'); return; }
-  map.setLayoutProperty('hex', 'visibility', 'visible'); map.setPaintProperty('hex', 'fill-color', stepExpr(v)); showLegend(v); });
+buttons('hex', v => { PROP = v; showLegend(v); if (!map.getLayer('hex')) return;
+  if (v === 'none') { map.setLayoutProperty('hex', 'visibility', 'none'); return; }
+  map.setLayoutProperty('hex', 'visibility', 'visible'); map.setPaintProperty('hex', 'fill-color', steps(v, BR[v])); });
 
 </script></body></html>

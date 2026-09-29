@@ -1,55 +1,120 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ChargeScape London · Public charging demand</title>
+<title>Public charging demand | ChargeScape London</title>
+<meta name="description" content="Bottom-up Monte Carlo model: EV stock, annual distance, energy per km and the share charged in public, which depends on off-street parking. Height and shade show MWh per year per hex. P10 and P90 keep the 2026 classes, so the change in shade is the uncertainty.">
+<script>(function(){var t=new URLSearchParams(location.search).get('theme');
+if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('cs-theme')}catch(e){t=null}}
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);})();
+function csIsDark(){var a=document.documentElement.getAttribute('data-theme');
+return a?a==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function csToken(n){return getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();}</script>
 <link href="../vendor/maplibre-gl-4.7.1/maplibre-gl.css" rel="stylesheet"><script src="../vendor/maplibre-gl-4.7.1/maplibre-gl.js"></script><script src="data/hex_r8.js"></script>
 <style>
-html,body{margin:0;height:100%;font:14px/1.4 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:#1a2027;background:#eef0ec}
-#map{position:absolute;inset:0}
-.panel{position:absolute;top:12px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:12px 14px;border-radius:8px;max-width:370px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.panel h1{font:600 16px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
-.panel p{margin:0 0 8px;color:#4b5763;font-size:12.5px}
-.status{display:inline-block;font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:10px;background:#e6f2f0;color:#0a665c;margin-bottom:8px}
-.status.model{background:#fdeee8;color:#a8401f}
-.nav a{font-size:12px;color:#0c7c70;margin-right:10px}
-.legend{position:absolute;bottom:30px;left:12px;z-index:5;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:8px;font-size:12px;box-shadow:0 1px 6px rgba(0,0,0,.18)}
-.legend.right{left:auto;right:12px;bottom:40px}
-.legend b{display:block;margin-bottom:6px}
-.lg{display:flex;align-items:center;gap:8px;margin:2px 0}
-.lg i{display:inline-block;width:16px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}
-.btns{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
-.btns button{font:12px/1 inherit;padding:5px 9px;border:1px solid #cfd6dc;border-radius:14px;background:#fff;cursor:pointer;color:#1a2027}
-.btns button.on{background:#0c7c70;color:#fff;border-color:#0c7c70}
-.btns button:focus-visible{outline:2px solid #0c7c70;outline-offset:1px}
-.maplibregl-popup-content{font-size:12.5px;line-height:1.45;padding:10px 12px}
-.note{position:absolute;right:12px;top:12px;z-index:6;background:#fff8e6;border:1px solid #f0d9a6;border-radius:6px;padding:6px 9px;font-size:12px;display:none}
-.nobasemap .note{display:block}
-body.embed .panel p,body.embed .panel h1,body.embed .nav,body.embed .status{display:none}
-body.embed .panel{padding:6px 8px;max-width:none}
+@font-face{font-family:"Geist";src:url("../vendor/geist-1.4.2/Geist-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Geist Mono";src:url("../vendor/geist-1.4.2/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+:root{color-scheme:light;--bg:#FFFFFF;--fg:#111111;--muted:#666666;--neutral:#888888;--border:#EAEAEA;--surface:#FAFAFA;--accent:#0070F3;--r1:#F2F2F2;--r2:#D9D9D9;--r3:#B3B3B3;--r4:#858585;--r5:#4D4D4D;--r6:#111111;--radius:0px;--ease-out:cubic-bezier(0.23,1,0.32,1);--z-map-ui:10;--z-bar:20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:"Geist","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.mono,code,kbd,td.num,th.num{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--neutral);text-underline-offset:0.2em;transition:text-decoration-color 150ms ease}
+@media (hover:hover) and (pointer:fine){a:hover{text-decoration-color:var(--fg)}}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms !important;animation-duration:0.01ms !important}}
+
+html,body{height:100%}
+body{font-size:13px;line-height:1.45;overflow:hidden}
+#map{position:absolute;inset:0;background:var(--surface)}
+.panel{position:absolute;top:0;left:0;z-index:var(--z-map-ui);background:var(--bg);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:16px;max-width:380px}
+.panel h1{font-size:17px;line-height:1.2;font-weight:600;letter-spacing:-0.02em;margin:0 0 6px;text-wrap:balance}
+.panel p{margin:0 0 12px;color:var(--muted);text-wrap:pretty}
+.status{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--border);padding:2px 6px;margin:0 0 10px}
+.controls{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg)}
+.seg button{appearance:none;border:0;border-right:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;line-height:1;padding:8px 10px;cursor:pointer;transition:background-color 150ms ease,color 150ms ease,transform 150ms var(--ease-out)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:active{transform:scale(0.97)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@media (hover:hover) and (pointer:fine){.seg button[aria-pressed="false"]:hover{color:var(--fg);background:var(--surface)}}
+.links{display:flex;gap:14px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend{position:absolute;left:0;bottom:0;z-index:var(--z-map-ui);display:flex;background:var(--bg);border-top:1px solid var(--border);border-right:1px solid var(--border);font-size:12px}
+.lgroup{padding:12px 16px}
+.lgroup[hidden]{display:none}
+.lgroup + .lgroup{border-left:1px solid var(--border)}
+.lgroup h2{font-size:12px;font-weight:500;margin:0 0 8px;color:var(--fg)}
+.lgroup ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.lgroup li{display:flex;align-items:center;gap:8px;color:var(--muted);white-space:nowrap}
+.lnote{margin:8px 0 0;color:var(--muted)}
+.sw{width:18px;height:10px;border:1px solid var(--border);flex:none}
+.sw.r1{background:var(--r1)}.sw.r2{background:var(--r2)}.sw.r3{background:var(--r3)}.sw.r4{background:var(--r4)}.sw.r5{background:var(--r5)}.sw.r6{background:var(--r6)}
+.mk{width:10px;height:10px;border-radius:50%;flex:none;margin:0 4px}
+.mk.slow{background:var(--neutral);width:5px;height:5px;margin:0 6.5px}
+.mk.fast{background:var(--fg);width:7px;height:7px;margin:0 5.5px}
+.mk.rapid{background:var(--accent)}
+.mk.ultra{background:var(--accent);box-shadow:0 0 0 1.5px var(--bg),0 0 0 3px var(--fg)}
+.mk.free{background:var(--r3)}
+.mk.busy{background:var(--accent)}
+.mk.core{background:var(--accent)}
+.mk.rest{background:var(--bg);box-shadow:inset 0 0 0 2px var(--fg)}
+.notice{position:absolute;top:0;right:56px;z-index:var(--z-map-ui);background:var(--bg);border:1px solid var(--border);border-top:0;padding:6px 10px;font-size:12px;color:var(--muted);display:none}
+.nobasemap .notice{display:block}
+.maplibregl-map{font-family:inherit}
+.maplibregl-ctrl-group{border-radius:var(--radius) !important;box-shadow:none !important;border:1px solid var(--border);background:var(--bg) !important;overflow:hidden}
+.maplibregl-ctrl-group button{background-color:var(--bg)}
+.maplibregl-ctrl-group button + button{border-top:1px solid var(--border)}
+.dark .maplibregl-ctrl-group .maplibregl-ctrl-icon,.dark .maplibregl-ctrl-attrib-button{filter:invert(1)}
+.maplibregl-ctrl-attrib,.maplibregl-ctrl-attrib.maplibregl-compact{background:var(--bg) !important;color:var(--muted);font-size:11px;border-radius:0;border:1px solid var(--border);margin:0 8px 8px 0}
+.maplibregl-ctrl-attrib.maplibregl-compact-show{padding-right:28px}
+.maplibregl-ctrl-attrib a{color:var(--muted)}
+.maplibregl-ctrl-scale{background:var(--bg);border-color:var(--fg);color:var(--fg);font-size:11px}
+.maplibregl-popup-content{background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:0;box-shadow:none;padding:10px 12px;font-size:12px;line-height:1.5}
+.maplibregl-popup-tip{display:none}
+.maplibregl-popup-content b{font-weight:600}
+.maplibregl-popup-content dl{display:grid;grid-template-columns:auto auto;gap:2px 14px;margin:6px 0 0}
+.maplibregl-popup-content dt{color:var(--muted)}
+.maplibregl-popup-content dd{margin:0;text-align:right}
+body.embed{font-size:clamp(10px,1.35vw,14px)}
+body.embed .panel{padding:10px;border-color:var(--border)}
+body.embed .panel h1,body.embed .panel p,body.embed .status,body.embed .links{display:none}
 body.embed .panel:not(:has(button)){display:none}
-body.embed .legend{font-size:11px;padding:7px 9px;bottom:22px;max-width:47%}
-body.embed .lg.sub{display:none}
+body.embed .seg button{font-size:0.85em;padding:0.6em 0.8em}
+body.embed .legend{font-size:0.85em}
+body.embed .lgroup{padding:0.7em 1em}
+body.embed .lgroup h2{font-size:1em}
+body.embed .lnote{display:none}
+@media (max-width:640px){.panel{max-width:none;right:0;border-right:0}.legend{flex-direction:column;right:0;border-right:0}.lgroup + .lgroup{border-left:0;border-top:1px solid var(--border)}}
 </style></head><body>
 <div id="map"></div>
-<div class="panel"><span class="status model">model on observed inputs</span><h1>Public charging demand</h1><p>Bottom-up Monte Carlo model: EV stock × km × kWh/km × share charged publicly (depends on off-street parking), plus destination and taxi/private-hire demand. Height and colour: MWh per year per H3 hex. P10 and P90 use the 2026 classes, so the colour shift is the uncertainty.</p><div class="btns" data-group="demand"><button data-v="demand_p10">P10</button><button data-v="demand_p50" class="on">P50 · 2026</button><button data-v="demand_p90">P90</button><button data-v="demand_2030">2030</button></div><div class="nav"><a href="index.html">all maps</a><a href="../index.html">project</a><a href="../slides/">slides</a><a href="https://github.com/m-erts/chargescape-london">github</a></div></div>
-<div class="legend" data-legend="2026"><b>MWh per year (2026 classes)</b><div class="lg"><i style="background:#440154"></i>< 25.9</div><div class="lg"><i style="background:#414487"></i>25.9 – 52.4</div><div class="lg"><i style="background:#2a788e"></i>52.4 – 77.2</div><div class="lg"><i style="background:#22a884"></i>77.2 – 112</div><div class="lg"><i style="background:#7ad151"></i>112 – 181</div><div class="lg"><i style="background:#fde725"></i>≥ 181</div></div><div class="legend" data-legend="2030" style="display:none"><b>MWh per year (2030 classes)</b><div class="lg"><i style="background:#440154"></i>< 118</div><div class="lg"><i style="background:#414487"></i>118 – 253</div><div class="lg"><i style="background:#2a788e"></i>253 – 400</div><div class="lg"><i style="background:#22a884"></i>400 – 564</div><div class="lg"><i style="background:#7ad151"></i>564 – 904</div><div class="lg"><i style="background:#fde725"></i>≥ 904</div></div>
-<div class="note">Basemap unavailable — showing data layers on a plain background.</div>
+<div class="panel"><span class="status mono">model on observed inputs</span><h1>Public charging demand</h1><p>Bottom-up Monte Carlo model: EV stock, annual distance, energy per km and the share charged in public, which depends on off-street parking. Height and shade show MWh per year per hex. P10 and P90 keep the 2026 classes, so the change in shade is the uncertainty.</p><div class="controls"><div class="seg" role="group" aria-label="Demand scenario" data-group="demand"><button type="button" data-v="demand_p10" aria-pressed="false">P10</button><button type="button" data-v="demand_p50" aria-pressed="true">P50 2026</button><button type="button" data-v="demand_p90" aria-pressed="false">P90</button><button type="button" data-v="demand_2030" aria-pressed="false">2030</button></div></div><nav class="links" aria-label="Project"><a href="index.html">All maps</a><a href="../slides/">Slides</a><a href="../index.html">Project</a><a href="https://github.com/m-erts/chargescape-london">GitHub</a></nav></div>
+<div class="legend"><div class="lgroup" data-legend="2026"><h2>MWh per year, 2026 classes</h2><ul><li><i class="sw r1"></i><span class="mono">under 25.9</span></li><li><i class="sw r2"></i><span class="mono">25.9 to 52.4</span></li><li><i class="sw r3"></i><span class="mono">52.4 to 77.2</span></li><li><i class="sw r4"></i><span class="mono">77.2 to 112</span></li><li><i class="sw r5"></i><span class="mono">112 to 181</span></li><li><i class="sw r6"></i><span class="mono">181 and over</span></li></ul></div><div class="lgroup" data-legend="2030" hidden><h2>MWh per year, 2030 classes</h2><ul><li><i class="sw r1"></i><span class="mono">under 118</span></li><li><i class="sw r2"></i><span class="mono">118 to 253</span></li><li><i class="sw r3"></i><span class="mono">253 to 400</span></li><li><i class="sw r4"></i><span class="mono">400 to 564</span></li><li><i class="sw r5"></i><span class="mono">564 to 904</span></li><li><i class="sw r6"></i><span class="mono">904 and over</span></li></ul></div></div>
+<div class="notice">Basemap unavailable. Data layers are shown on a plain background.</div>
 <script>
 const EMBED = new URLSearchParams(location.search).has('embed') || window.self !== window.top;
-if (EMBED) document.body.classList.add('embed');
-const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#eef0ec'}}]};
-const map = new maplibregl.Map({container: 'map', style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
-map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
-map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
+const DARK = csIsDark();
+document.body.classList.toggle('embed', EMBED);
+document.body.classList.toggle('dark', DARK);
+const T = {bg: csToken('bg'), fg: csToken('fg'), neutral: csToken('neutral'), accent: csToken('accent'), surface: csToken('surface')};
+const RAMP = [1, 2, 3, 4, 5, 6].map(i => csToken('r' + i));
+const FALLBACK = {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': T.surface}}]};
+const map = new maplibregl.Map({container: 'map', style: DARK ? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json' : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', bounds: [[-0.52, 51.28], [0.34, 51.7]], fitBoundsOptions: {padding: EMBED ? 8 : 30}, attributionControl: {compact: true}});
+map.addControl(new maplibregl.NavigationControl({showCompass: !EMBED, visualizePitch: true}), 'top-right');
+if (!EMBED) map.addControl(new maplibregl.ScaleControl({unit: 'metric'}), 'bottom-right');
 function layer(name) {
   const d = (window.CS_DATA || {})[name];
-  if (!d) { const b = document.createElement('div'); b.className = 'legend right'; b.style.top = '60px'; b.style.bottom = 'auto';
-    b.innerHTML = '<b>Data layer “' + name + '” did not load.</b>Open the GitHub Pages version or serve the folder: python -m http.server'; document.body.appendChild(b); }
+  if (!d) { const n = document.querySelector('.notice'); n.textContent = 'Data layer "' + name + '" did not load. Open the published page or serve the folder over http.'; n.style.display = 'block'; }
   return d || {type: 'FeatureCollection', features: []};
 }
-function popup(html, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '320px'}).setLngLat(lngLat).setHTML(html).addTo(map); }
+function steps(prop, breaks) { const e = ['step', ['coalesce', ['get', prop], 0], RAMP[0]]; breaks.forEach((b, i) => e.push(b, RAMP[i + 1])); return e; }
+function under() { const l = (map.getStyle().layers || []).find(x => x.type === 'symbol'); return l ? l.id : undefined; }
+function rows(pairs) { return '<dl>' + pairs.map(p => '<dt>' + p[0] + '</dt><dd class="mono">' + p[1] + '</dd>').join('') + '</dl>'; }
+function popup(title, pairs, lngLat) { new maplibregl.Popup({closeButton: false, maxWidth: '340px', offset: 8}).setLngLat(lngLat).setHTML('<b>' + title + '</b>' + rows(pairs)).addTo(map); }
 function pointer(id) { map.on('mouseenter', id, () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', id, () => map.getCanvas().style.cursor = ''); }
-function buttons(group, onPick) { document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(btn => btn.onclick = () => {
-  document.querySelectorAll('.btns[data-group="' + group + '"] button').forEach(x => x.classList.toggle('on', x === btn)); onPick(btn.dataset.v); }); }
-function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.style.display = el.dataset.legend === key ? '' : 'none'); }
+function buttons(group, onPick) { const all = document.querySelectorAll('.seg[data-group="' + group + '"] button');
+  all.forEach(btn => btn.addEventListener('click', () => { all.forEach(x => x.setAttribute('aria-pressed', x === btn ? 'true' : 'false')); onPick(btn.dataset.v); })); }
+function showLegend(key) { document.querySelectorAll('[data-legend]').forEach(el => el.hidden = el.dataset.legend !== key); }
+function pct(x) { return Math.round(100 * (x || 0)) + '%'; }
 let added = false, styleReady = false, fitted = false;
 function ensureFit() { const c = map.getContainer(); if (fitted || c.clientWidth < 80 || c.clientHeight < 80) return;
   fitted = true; map.resize(); map.fitBounds([[-0.52, 51.28], [0.34, 51.7]], {padding: EMBED ? 8 : 30, duration: 0}); }
@@ -60,21 +125,21 @@ map.on('error', e => { const m = e && e.error ? String(e.error.message || e.erro
 setTimeout(() => { if (!added) useFallback('timeout'); }, 7000);
 if (EMBED) {
   map.keyboard.disable();
-  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', ' ', 'f', 'F'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
+  addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' ', 'f', 'F', 't', 'T'].includes(e.key)) { parent.postMessage({cs_key: e.key}, '*'); e.preventDefault(); } });
 }
 
 const BR = {demand_p10: [25.86, 52.42, 77.18, 111.86, 180.92], demand_p50: [25.86, 52.42, 77.18, 111.86, 180.92], demand_p90: [25.86, 52.42, 77.18, 111.86, 180.92], demand_2030: [117.79, 252.63, 399.84, 564.21, 903.84]};
-const COL = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
-function stepExpr(prop) { const e = ['step', ['coalesce', ['get', prop], 0], COL[0]]; BR[prop].forEach((b, i) => e.push(b, COL[i + 1])); return e; }
-function heightExpr(prop) { return ['*', ['min', ['coalesce', ['get', prop], 0], 900], 2.2]; }
+let PROP = 'demand_p50';
+function height(prop) { return ['*', ['min', ['coalesce', ['get', prop], 0], 900], 2.2]; }
+function paint() { map.setPaintProperty('hex', 'fill-extrusion-color', steps(PROP, BR[PROP])); map.setPaintProperty('hex', 'fill-extrusion-height', height(PROP)); }
 function addLayers() {
   map.addSource('hex', {type: 'geojson', data: layer('hex_r8')});
-  map.addLayer({id: 'hex', type: 'fill-extrusion', source: 'hex', paint: {'fill-extrusion-color': stepExpr('demand_p50'), 'fill-extrusion-height': heightExpr('demand_p50'), 'fill-extrusion-opacity': 0.88}});
-  map.easeTo({pitch: 45, bearing: -12, duration: 1400});
+  map.addLayer({id: 'hex', type: 'fill-extrusion', source: 'hex', paint: {'fill-extrusion-color': steps(PROP, BR[PROP]), 'fill-extrusion-height': height(PROP), 'fill-extrusion-opacity': 0.92}});
+  map.jumpTo({pitch: 45, bearing: -12});
   map.on('click', 'hex', e => { const p = e.features[0].properties;
-    popup(`<b>${p.borough}</b><br>Public charging demand 2026, P50: <b>${p.demand_p50}</b> MWh/yr<br>P10–P90: ${p.demand_p10} – ${p.demand_p90}<br>2030, DFES mid pathway: ${p.demand_2030} MWh/yr<br>Taxi &amp; private-hire share: ${Math.round(100 * (p.phv_share || 0))} %<br>Private EVs per 1,000 households: ${p.piv_private_per_1000_hh} · flats: ${Math.round(100 * p.share_flat)} %`, e.lngLat); });
+    popup(p.borough, [['Demand 2026, P50', p.demand_p50 + ' MWh/yr'], ['P10 to P90', p.demand_p10 + ' to ' + p.demand_p90], ['Demand 2030, mid pathway', p.demand_2030 + ' MWh/yr'], ['Taxi and private hire', pct(p.phv_share)], ['Private EVs per 1,000 households', p.piv_private_per_1000_hh], ['Households in flats', pct(p.share_flat)]], e.lngLat); });
   pointer('hex');
 }
-buttons('demand', v => { map.setPaintProperty('hex', 'fill-extrusion-color', stepExpr(v)); map.setPaintProperty('hex', 'fill-extrusion-height', heightExpr(v)); showLegend(v === 'demand_2030' ? '2030' : '2026'); });
+buttons('demand', v => { PROP = v; if (map.getLayer('hex')) paint(); showLegend(v === 'demand_2030' ? '2030' : '2026'); });
 
 </script></body></html>

@@ -25,3 +25,7 @@ reports/maps/*.html
 .pytest_cache/
 .ruff_cache/
 mlruns/
+
+# tool caches and local agent tooling
+cache/
+.claude/

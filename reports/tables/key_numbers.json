@@ -7,6 +7,44 @@
   "chargers_total": 31371,
   "chargers_rapid": 2533,
   "rapid_share": 0.081,
+  "boroughs": {
+    "densest": [
+      {
+        "name": "Hammersmith and Fulham",
+        "per_100k": 1380
+      },
+      {
+        "name": "Westminster",
+        "per_100k": 1378
+      }
+    ],
+    "rapid_share_top": [
+      {
+        "name": "Havering",
+        "share": 0.398
+      },
+      {
+        "name": "Hillingdon",
+        "share": 0.392
+      }
+    ],
+    "rapid_share_bottom": [
+      {
+        "name": "Kensington and Chelsea",
+        "share": 0.008
+      },
+      {
+        "name": "Hackney",
+        "share": 0.031
+      },
+      {
+        "name": "Westminster",
+        "share": 0.032
+      }
+    ],
+    "uk_rapid_share": 0.238
+  },
+  "moran_private_ev": 0.73,
   "sites_total": 13174,
   "sites_by_source": {
     "ocm": 12519,
@@ -354,13 +392,85 @@
     "r2_random": 0.697,
     "r2_leave_city_out": -0.249,
     "spearman_by_city": {
-      "boulder": -0.04,
-      "dundee": -0.34,
-      "palo_alto": 0.02,
-      "pkc": 0.64
-    }
+      "Boulder": -0.04,
+      "Dundee": -0.34,
+      "Palo Alto": 0.02,
+      "Perth and Kinross": 0.64
+    },
+    "by_city": [
+      {
+        "city": "Boulder",
+        "n": 45,
+        "median_sessions_day": 1.18,
+        "r2": -0.18,
+        "spearman": -0.04
+      },
+      {
+        "city": "Dundee",
+        "n": 90,
+        "median_sessions_day": 1.13,
+        "r2": -0.16,
+        "spearman": -0.34
+      },
+      {
+        "city": "Palo Alto",
+        "n": 34,
+        "median_sessions_day": 4.12,
+        "r2": -2.68,
+        "spearman": 0.02
+      },
+      {
+        "city": "Perth and Kinross",
+        "n": 35,
+        "median_sessions_day": 1.28,
+        "r2": -0.36,
+        "spearman": 0.64
+      }
+    ],
+    "importance": [
+      {
+        "feature": "power_kw_f",
+        "label": "Charger power (kW)",
+        "gain_share": 0.2901
+      },
+      {
+        "feature": "dist_motorway_m",
+        "label": "Distance to motorway or trunk road",
+        "gain_share": 0.1175
+      },
+      {
+        "feature": "poi_car_800",
+        "label": "Car services within 800 m",
+        "gain_share": 0.0905
+      },
+      {
+        "feature": "dist_primary_m",
+        "label": "Distance to primary or secondary road",
+        "gain_share": 0.0495
+      },
+      {
+        "feature": "is_rapid_f",
+        "label": "Rapid charger (50 kW or more)",
+        "gain_share": 0.0478
+      },
+      {
+        "feature": "poi_parking_300",
+        "label": "Car parks within 300 m",
+        "gain_share": 0.0473
+      },
+      {
+        "feature": "pop_1km",
+        "label": "Population within 1 km",
+        "gain_share": 0.0469
+      },
+      {
+        "feature": "poi_parking_800",
+        "label": "Car parks within 800 m",
+        "gain_share": 0.0398
+      }
+    ]
   },
   "n_sources": 32,
-  "n_tests": 22,
+  "n_tests": 23,
   "n_notebooks": 5
 }

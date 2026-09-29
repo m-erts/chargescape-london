@@ -36,7 +36,7 @@ Nothing synthetic is ever presented as observed, and the README states which res
 | L6 Robustness | Which sites stay good across demand scenarios? | a plan per scenario (P10/P50/P90), each evaluated exactly under the others with a fixed-plan LP: expected coverage, minimax regret and a robust core. The single two-stage robust MILP is implemented and tested but does not close its gap on the London instance, so it is not used for results | `optimize/facility.py`, `optimize/siting_pipeline.py`, notebook 04 |
 | L7 Sensitivity | What moves when behavioural and service assumptions change? | re-solve at £20M on a fixed candidate set for 9 changed assumptions; exact and same-or-adjacent-hex overlap with the base | `optimize/sensitivity.py`, notebook 04 |
 | L8 Transfer test | Do context features explain observed utilisation in cities that publish sessions, and does that transfer? | LightGBM on station context; random vs leave-city-out CV; scoring of London sites | `features/station_context.py`, `models/ml.py`, notebook 05 |
-| L9 Delivery | How does a planner use this? | MapLibre GL maps (offline-capable), HTML slides in English and Russian, PPTX backup, key-numbers file that feeds the README | `viz/export_maplibre.py`, `scripts/`, `docs/` |
+| L9 Delivery | How does a planner use this? | MapLibre GL maps (offline-capable), HTML slides with live maps, PPTX backup, key-numbers file that feeds the README | `viz/export_maplibre.py`, `scripts/`, `docs/` |
 
 ## 4. Structural demand priors (L2)
 
@@ -60,12 +60,12 @@ The priors are deliberately wide. Calibration targets are aggregate observed qua
 
 ## 6. What the London run showed (September 2026)
 
-* **Calibration.** Modelled public demand 285 GWh/yr (P10–P90 216–361) against ≈760 GWh/yr that the network *could* deliver at TfL-observed occupancy; the rapid-type component implies ≈13 sessions per rapid charger per day, matching TfL's 34 % occupancy with 38-minute sessions. The near-home component is well below the slow network's theoretical throughput, consistent with long-dwell, low-charging-time on-street sessions.
-* **Queues, not distance.** Median drive time to a rapid site is 2.2 min, yet 348 of 632 rapid sites have P(wait) > 0.5 at the peak hour while their 24-hour utilisation has a median of 15 %.
-* **Cannibalisation.** A hub placed at the hex with the largest unmet demand takes 64–75 % of its sessions from existing sites, more for larger and faster hubs.
-* **Regime.** With P(wait) ≤ 15 % at the peak hour a 4 × 150 kW hub absorbs ≈33 sessions/day; unmet or queue-constrained rapid demand is ≈2,686 sessions/day. Siting is capacity-bound: £20M buys 51 hubs serving 63 % of it, £40M buys 98 hubs serving 86 %. Greedy uncapacitated coverage overstates served demand by up to 4.7× at small budgets.
-* **Demand uncertainty.** A plan is optimised for each of P10, P50 and P90 demand and evaluated exactly under the others. At £5–20M the plan optimised for *pessimistic* (P10) demand has zero regret in every scenario: capacity-bound hubs placed where even low demand is dense fill up whatever happens, while hubs placed for median demand may not. At £40M, when capacity no longer binds everywhere, the P90 plan is best. The three plans agree on a robust core of 22 of 51 hubs at £20M (same or adjacent hex).
-* **Assumptions.** Across 9 changed behavioural and service assumptions, a median 75 % of the £20M hubs stay in the same or an adjacent hex; the service level moves coverage the most.
+* **Calibration.** Modelled public demand 285 GWh/yr (P10 to P90: 216 to 361) against about 760 GWh/yr that the network *could* deliver at TfL-observed occupancy; the rapid-type component implies about 13 sessions per rapid charger per day, matching TfL's 34% occupancy with 38-minute sessions. The near-home component is well below the slow network's theoretical throughput, consistent with long-dwell, low-charging-time on-street sessions.
+* **Queues, not distance.** Median drive time to a rapid site is 2.2 min, yet 348 of 632 rapid sites have P(wait) > 0.5 at the peak hour while their 24-hour utilisation has a median of 15%.
+* **Cannibalisation.** A hub placed at the hex with the largest unmet demand takes 64 to 75% of its sessions from existing sites, more for larger and faster hubs.
+* **Regime.** With P(wait) ≤ 15% at the peak hour a 4 × 150 kW hub absorbs ≈33 sessions/day; unmet or queue-constrained rapid demand is ≈2,686 sessions/day. Siting is capacity-bound: £20M buys 51 hubs serving 63% of it, £40M buys 98 hubs serving 86%. Greedy uncapacitated coverage overstates served demand by up to 4.7× at small budgets.
+* **Demand uncertainty.** A plan is optimised for each of P10, P50 and P90 demand and evaluated exactly under the others. At £5M to £20M the plan optimised for *pessimistic* (P10) demand has zero regret in every scenario: capacity-bound hubs placed where even low demand is dense fill up whatever happens, while hubs placed for median demand may not. At £40M, when capacity no longer binds everywhere, the P90 plan is best. The three plans agree on a robust core of 22 of 51 hubs at £20M (same or adjacent hex).
+* **Assumptions.** Across 9 changed behavioural and service assumptions, a median 75% of the £20M hubs stay in the same or an adjacent hex; the service level moves coverage the most.
 * **Transfer.** Context features explain observed utilisation poorly out of city (leave-city-out R² -0.25 vs 0.70 with random folds). Any site model must be validated out-of-city against usage.
 
 ## 7. Known limitations

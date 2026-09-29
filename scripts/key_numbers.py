@@ -9,11 +9,44 @@ import re
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
+from sklearn.metrics import r2_score
 
+from chargescape.features.spatial_stats import h3_weights, morans_i
 from chargescape.models.allocation_pipeline import candidate_increment
-from chargescape.models.ml import cross_validate
+from chargescape.models.ml import cross_validate, fit_lgbm
 from chargescape.utils.paths import DOCS, PROCESSED, ROOT, TABLES
 from chargescape.utils.reference import charging_sites, dft_la
+
+
+def feature_label(name: str) -> str:
+    """Human-readable label for a station-context feature."""
+    fixed = {
+        "power_kw_f": "Charger power (kW)",
+        "is_rapid_f": "Rapid charger (50 kW or more)",
+        "pop_1km": "Population within 1 km",
+        "dist_motorway_m": "Distance to motorway or trunk road",
+        "dist_primary_m": "Distance to primary or secondary road",
+        "dist_rail_m": "Distance to rail station",
+    }
+    if name in fixed:
+        return fixed[name]
+    kinds = {
+        "food": "Food venues",
+        "retail": "Shops",
+        "hotel": "Hotels",
+        "leisure": "Leisure venues",
+        "parking": "Car parks",
+        "fuel": "Fuel stations",
+        "office": "Offices",
+        "health_edu": "Health and education",
+        "car": "Car services",
+    }
+    parts = name.split("_")
+    if name.startswith("parking_capacity"):
+        return f"Parking capacity within {parts[-1]} m"
+    if parts[0] == "poi":
+        return f"{kinds.get('_'.join(parts[1:-1]), ' '.join(parts[1:-1]).title())} within {parts[-1]} m"
+    return name.replace("_", " ")
 
 
 def transfer_metrics() -> dict:
@@ -35,13 +68,49 @@ def transfer_metrics() -> dict:
     g = train["city"].to_numpy()
     r_rand = cross_validate(X, y, None, n_splits=5, num_rounds=300, log_target=True)
     r_city = cross_validate(X, y, g, n_splits=4, num_rounds=300, log_target=True)
-    rho = {c: float(spearmanr(y[g == c], r_city.oof[g == c]).correlation) for c in sorted(set(g))}
+    names = {"dundee": "Dundee", "pkc": "Perth and Kinross", "palo_alto": "Palo Alto", "boulder": "Boulder"}
+    cities = []
+    for c in sorted(set(g)):
+        m = g == c
+        cities.append(
+            {
+                "city": names.get(c, c),
+                "n": int(m.sum()),
+                "median_sessions_day": round(float(np.median(y[m])), 2),
+                "r2": round(float(r2_score(y[m], r_city.oof[m])), 2),
+                "spearman": round(float(spearmanr(y[m], r_city.oof[m]).correlation), 2),
+            }
+        )
+    gain = fit_lgbm(X, np.log1p(y), num_rounds=300).feature_importance("gain")
+    share = gain / gain.sum()
+    top = sorted(zip(feat_cols, share, strict=True), key=lambda t: -t[1])[:8]
     return {
         "n_stations": int(len(train)),
         "cities": sorted(set(g)),
         "r2_random": round(float(r_rand.r2), 3),
         "r2_leave_city_out": round(float(r_city.r2), 3),
-        "spearman_by_city": {k: round(v, 2) for k, v in rho.items()},
+        "spearman_by_city": {c["city"]: c["spearman"] for c in cities},
+        "by_city": cities,
+        "importance": [
+            {"feature": f, "label": feature_label(f), "gain_share": round(float(v), 4)} for f, v in top
+        ],
+    }
+
+
+def borough_facts(dft: pd.DataFrame) -> dict:
+    """Borough extremes and the UK comparison from the latest DfT release."""
+    last = dft[dft.date == dft.date.max()]
+    la = last[last.geography == "local_authority"].pivot_table(
+        index="area_name", columns="measure", values="value"
+    )
+    share = (la["50kW+ EV chargers"] / la["EV chargers"]).sort_values()
+    dens = la["EV chargers per 100k"].sort_values(ascending=False)
+    uk = last[last.area_code == "K02000001"].set_index("measure")["value"]
+    return {
+        "densest": [{"name": n, "per_100k": round(float(v))} for n, v in dens.head(2).items()],
+        "rapid_share_top": [{"name": n, "share": round(float(v), 3)} for n, v in share.tail(2)[::-1].items()],
+        "rapid_share_bottom": [{"name": n, "share": round(float(v), 3)} for n, v in share.head(3).items()],
+        "uk_rapid_share": round(float(uk["50kW+ EV chargers"] / uk["EV chargers"]), 3),
     }
 
 
@@ -63,6 +132,14 @@ def main() -> dict:
     k["chargers_total"] = int(la["EV chargers"].sum())
     k["chargers_rapid"] = int(la["50kW+ EV chargers"].sum())
     k["rapid_share"] = round(k["chargers_rapid"] / k["chargers_total"], 3)
+    k["boroughs"] = borough_facts(dft)
+    hexes = pd.read_parquet(
+        PROCESSED / "hex_features_r8.small.parquet", columns=["h3", "piv_private_per_1000_hh"]
+    )
+    k["moran_private_ev"] = round(
+        morans_i(hexes["piv_private_per_1000_hh"].fillna(0), h3_weights(hexes["h3"]), permutations=199)["I"],
+        2,
+    )
     sites = charging_sites()
     k["sites_total"] = int(len(sites))
     k["sites_by_source"] = {s: int(n) for s, n in sites["source"].value_counts().items()}

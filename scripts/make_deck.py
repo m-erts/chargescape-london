@@ -1,5 +1,8 @@
-"""Offline PPTX version of the final deck (reports/ChargeScape_London.pptx), same structure as the HTML
-slides but with static figures instead of live maps. Numbers from reports/tables/key_numbers.json."""
+"""Offline PPTX version of the deck (reports/ChargeScape_London.pptx).
+
+Same argument as the HTML slides, with static figures instead of live maps. Chrome follows DESIGN.md:
+black, white and grey, one blue accent, sharp 1px-bordered blocks. Numbers from key_numbers.json.
+"""
 
 from __future__ import annotations
 
@@ -17,15 +20,16 @@ from pptx.util import Inches, Pt
 ROOT = Path(__file__).resolve().parents[1]
 FIG = ROOT / "reports" / "figures"
 K = json.loads((ROOT / "reports" / "tables" / "key_numbers.json").read_text())
-NAVY, ORANGE, TEAL = RGBColor(0x14, 0x21, 0x3D), RGBColor(0xE4, 0x57, 0x2E), RGBColor(0x0C, 0x7C, 0x70)
 INK, MUTED, PALE, WHITE, SOFT = (
-    RGBColor(0x1A, 0x20, 0x27),
-    RGBColor(0x5B, 0x6B, 0x7A),
-    RGBColor(0xEE, 0xF2, 0xF4),
+    RGBColor(0x11, 0x11, 0x11),
+    RGBColor(0x66, 0x66, 0x66),
+    RGBColor(0xFA, 0xFA, 0xFA),
     RGBColor(0xFF, 0xFF, 0xFF),
-    RGBColor(0xC8, 0xD3, 0xDC),
+    RGBColor(0x88, 0x88, 0x88),
 )
-HEAD, BODY = "Cambria", "Calibri"
+BLACK, BORDER, ACCENT = RGBColor(0x00, 0x00, 0x00), RGBColor(0xEA, 0xEA, 0xEA), RGBColor(0x00, 0x70, 0xF3)
+NAVY = ORANGE = TEAL = INK  # one text colour; the accent is reserved for data
+HEAD = BODY = "Arial"
 W, H = 13.333, 7.5
 prs = Presentation()
 prs.slide_width, prs.slide_height = Inches(W), Inches(H)
@@ -46,6 +50,8 @@ def text(s, x, y, w, h, lines, size=16, bold=False, color=INK, font=BODY, align=
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.alignment = align
         p.line_spacing = 1.15
+        if isinstance(lines, list) and len(lines) > 1:
+            p.space_after = Pt(6)
         r = p.add_run()
         r.text = ln
         r.font.size, r.font.bold, r.font.italic, r.font.name = Pt(size), bold, italic, font
@@ -68,9 +74,9 @@ def bullets(s, x, y, w, h, items, size=14):
 
 
 def title(s, t, sub=None):
-    text(s, 0.6, 0.4, W - 1.2, 0.9, t, size=28, bold=True, color=NAVY, font=HEAD)
+    text(s, 0.6, 0.45, W - 1.2, 0.9, t, size=24, bold=True, color=NAVY, font=HEAD)
     if sub:
-        text(s, 0.6, 1.2, W - 1.2, 0.45, sub, size=13, color=MUTED, italic=True)
+        text(s, 0.6, 1.2, W - 1.2, 0.45, sub, size=13, color=MUTED)
 
 
 def stat(s, x, y, w, big, label, color=ORANGE):
@@ -78,15 +84,20 @@ def stat(s, x, y, w, big, label, color=ORANGE):
     text(s, x, y + 0.78, w, 0.8, label, size=12, color=MUTED)
 
 
-def card(s, x, y, w, h, head, body, fill=PALE, size=12):
-    shp = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
+def box(s, x, y, w, h, fill=WHITE):
+    shp = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
     shp.fill.solid()
     shp.fill.fore_color.rgb = fill
-    shp.line.fill.background()
-    shp.adjustments[0] = 0.05
+    shp.line.color.rgb = BORDER
+    shp.line.width = Pt(0.75)
     shp.shadow.inherit = False
+    return shp
+
+
+def card(s, x, y, w, h, head, body, fill=WHITE, size=12):
+    box(s, x, y, w, h, fill)
     text(s, x + 0.25, y + 0.18, w - 0.5, 0.45, head, size=15, bold=True, color=NAVY)
-    text(s, x + 0.25, y + 0.65, w - 0.5, h - 0.8, body, size=size)
+    text(s, x + 0.25, y + 0.65, w - 0.5, h - 0.8, body.split("\n\n") if "\n\n" in body else body, size=size)
 
 
 def picture(s, name, x, y, w=None, h=None):
@@ -132,7 +143,7 @@ def new(dark=False):
     global n
     n += 1
     s = prs.slides.add_slide(BLANK)
-    bg(s, NAVY if dark else WHITE)
+    bg(s, BLACK if dark else WHITE)
     return s
 
 
@@ -158,7 +169,7 @@ text(
     1.2,
     [
         "Where should London's next rapid-charging hubs go, how big should they be, and how sure can we be?",
-        "Built end-to-end from open data, with every assumption visible.",
+        "Built end to end from open data, with every assumption visible.",
     ],
     size=15,
     color=WHITE,
@@ -169,7 +180,7 @@ text(
     6.3,
     11.0,
     0.5,
-    "Marija Ercegovac · geospatial data science · github.com/m-erts/chargescape-london",
+    "Marija Ercegovac, geospatial data science, github.com/m-erts/chargescape-london",
     size=13,
     color=SOFT,
 )
@@ -178,9 +189,9 @@ text(
 s = new()
 title(s, "Charging is an infrastructure business that lives or dies on utilisation")
 stat(s, 0.8, 1.6, 2.9, f"{K['chargers_total']:,}", f"public chargers in London (DfT, {K['dft_date']})")
-stat(s, 3.9, 1.6, 2.9, f"{100 * K['rapid_share']:.0f} %", "of them are 50 kW+; UK: 24 %", TEAL)
+stat(s, 3.9, 1.6, 2.9, f"{100 * K['rapid_share']:.0f}%", "rated 50 kW or more. UK: 24%", TEAL)
 stat(s, 7.0, 1.6, 2.9, "300k", "plug-in cars kept in London (DfT, Q1 2026)", NAVY)
-stat(s, 10.1, 1.6, 2.9, "34 %", "occupancy of rapid units (TfL, 2025)")
+stat(s, 10.1, 1.6, 2.9, "34%", "occupancy of rapid units (TfL, 2025)")
 card(
     s,
     0.8,
@@ -188,7 +199,7 @@ card(
     5.9,
     2.9,
     "The economics",
-    "A hub in the wrong hex idles at 5 % and never pays back; the right one runs above 20–30 % and queues. Industry analyses put break-even at 15–20 % utilisation; payback roughly halves between 10 % and 20 %.",
+    "A hub in the wrong place idles at 5% and never pays back. A hub in the right place runs above 20% and starts to queue. Industry analyses put break-even at 15 to 20% utilisation.",
 )
 card(
     s,
@@ -207,40 +218,32 @@ title(s, "What this system does differently")
 items = [
     (
         "Labels on every dataset",
-        f"observed / proxy / synthetic — {K['n_sources']} sources in the catalog; the label follows the number into every table.",
+        f"Observed, proxy or synthetic. {K['n_sources']} datasets in the catalog, and the label follows each number into every table.",
     ),
     (
         "Usage, checked against reality",
-        "Demand modelled bottom-up, then checked against DfT charger counts × TfL occupancy and open session logs.",
+        "Modelled bottom up, then compared with DfT charger counts, TfL occupancy and open session logs.",
     ),
     (
         "Uncertainty reaches the decision",
-        "P10/P50/P90 per hex; a plan is solved for each demand scenario and tested under the others; a sensitivity run shows what moves.",
+        "P10, P50 and P90 for every hex. One plan per demand scenario, each tested under the others.",
     ),
     (
         "Queues, cannibalisation, grid",
-        "Erlang-C capacity per hub, new vs stolen demand for any candidate, primary-substation headroom as a filter.",
+        "Erlang C capacity per hub, new against captured demand for any candidate, substation headroom as a filter.",
     ),
 ]
 for i, (h, b) in enumerate(items):
     x, y = 0.8 + (i % 2) * 6.2, 1.6 + (i // 2) * 2.0
-    c = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(x), Inches(y), Inches(0.5), Inches(0.5))
-    c.fill.solid()
-    c.fill.fore_color.rgb = [ORANGE, TEAL, NAVY, ORANGE][i]
-    c.line.fill.background()
-    text(s, x, y + 0.09, 0.5, 0.35, str(i + 1), size=15, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    box(s, x, y, 0.5, 0.5)
+    text(s, x, y + 0.11, 0.5, 0.35, str(i + 1), size=13, color=MUTED, align=PP_ALIGN.CENTER)
     text(s, x + 0.7, y, 5.3, 0.45, h, size=17, bold=True, color=NAVY, font=HEAD)
     text(s, x + 0.7, y + 0.5, 5.3, 1.3, b, size=13)
-steps = ["Open data", "H3 features", "Demand · MC", "Choice & queues", "Siting MILP", "Maps & test plan"]
+steps = ["Open data", "H3 features", "Demand", "Choice and queues", "Siting MILP", "Maps and test plan"]
 for i, st in enumerate(steps):
     x = 0.6 + i * 2.05
-    shp = s.shapes.add_shape(
-        MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON, Inches(x), Inches(5.9), Inches(2.0), Inches(0.7)
-    )
-    shp.fill.solid()
-    shp.fill.fore_color.rgb = [NAVY, TEAL, ORANGE, TEAL, NAVY, MUTED][i]
-    shp.line.fill.background()
-    text(s, x + 0.3, 6.1, 1.5, 0.35, st, size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    box(s, x, 5.9, 2.05, 0.7, PALE)
+    text(s, x + 0.15, 6.12, 1.75, 0.35, st, size=11, bold=True, align=PP_ALIGN.CENTER)
 footer(s, n)
 
 # 4 data
@@ -248,28 +251,28 @@ s = new()
 title(s, f"{K['n_sources']} open sources, each labelled observed, proxy or synthetic")
 groups = [
     (
-        "Supply · observed",
+        "Supply: observed",
         "Open Charge Map (12.5k points), OpenStreetMap, National Chargepoint Registry 2021, DfT EVCI July 2026",
     ),
     (
-        "Where EVs live · observed",
+        "Where EVs live: observed",
         "Census 2021 (4,994 LSOAs), DfT vehicle licensing by LSOA (Q1 2026), Indices of Deprivation 2025",
     ),
     (
-        "Activity & traffic · observed / proxy",
-        "OSM POIs (74k), LAEI 2022 road flows incl. taxi & private hire, TfL stations, NaPTAN",
+        "Activity: observed, proxy",
+        "OSM POIs (74k), LAEI 2022 road flows with taxi and private hire, TfL stations, NaPTAN",
     ),
     (
-        "Grid & future · proxy",
-        "UKPN primary-substation headroom (summer 2026); DFES 2026 EV pathways to 2030",
+        "Grid and future: proxy",
+        "UKPN primary-substation headroom (summer 2026), DFES 2026 EV pathways to 2030",
     ),
     (
-        "Behaviour elsewhere · observed",
-        "Session logs from Dundee, Perth & Kinross, Palo Alto, Boulder; Optimise Prime; Low Carbon London",
+        "Behaviour elsewhere: observed",
+        "Session logs from Dundee, Perth and Kinross, Palo Alto, Boulder. Optimise Prime, Low Carbon London",
     ),
     (
-        "Model outputs · synthetic",
-        "Monte Carlo demand draws; literature-informed choice parameters — never presented as observed",
+        "Model outputs: synthetic",
+        "Monte Carlo demand draws and literature-informed choice parameters, never presented as observed",
     ),
 ]
 for i, (h, b) in enumerate(groups):
@@ -283,10 +286,20 @@ footer(s, n)
 s = new()
 title(
     s,
-    "Supply follows devices; need follows cars without driveways",
+    "Supply follows devices. Need follows cars without driveways.",
     "Live map: m-erts.github.io/chargescape-london/maps/supply_2026.html",
 )
-picture(s, "01_hex_supply_demand.png", 0.6, 1.75, h=5.2)
+picture(s, "panel_supply.png", 0.6, 1.75, h=4.9)
+text(
+    s,
+    0.6,
+    6.7,
+    6.3,
+    0.3,
+    "Private plug-in cars per 1,000 households (grey) and sites of 50 kW or more (blue)",
+    size=10,
+    color=MUTED,
+)
 bullets(
     s,
     7.4,
@@ -294,10 +307,10 @@ bullets(
     5.4,
     4.9,
     [
-        "Inner boroughs: ~1,400 chargers per 100k residents, mostly 5–7 kW lamp-post units; rapid share 40 % in Havering and Hillingdon, under 4 % in Westminster and Hackney.",
+        "Inner boroughs: about 1,400 chargers per 100,000 residents, mostly lamp-post units of 5 to 7 kW. Rapid share is 40% in Havering and 39% in Hillingdon, under 4% in Westminster and Hackney.",
         "Private plug-in cars cluster in outer, house-rich boroughs (Moran's I = 0.73).",
-        "EV owners in flats — who depend on public charging — form Gi* hot spots in inner-west and inner-south London.",
-        f"Median drive time to a rapid site is {K['median_tt_nearest_rapid_min']} min: in London the constraint is capacity, not distance.",
+        "EV owners in flats, who depend on public charging, form Gi* hot spots in inner-west and inner-south London.",
+        f"Median drive time to a rapid site is {K['median_tt_nearest_rapid_min']} min. In London the constraint is capacity, not distance.",
     ],
     size=13,
 )
@@ -308,32 +321,32 @@ s = new()
 title(
     s,
     "A demand surface with the uncertainty attached",
-    "Live map: …/maps/demand_2026.html (toggle P10 / P50 / P90 / 2030)",
+    "Live map: …/maps/demand_2026.html (switch between P10, P50, P90 and 2030)",
 )
-picture(s, "02_demand_p50_uncertainty.png", 0.6, 1.75, w=12.1)
+picture(s, "panel_demand.png", 0.6, 1.75, h=4.9)
+text(s, 0.6, 6.7, 6.3, 0.3, "Public charging demand 2026, P50, six quantile classes", size=10, color=MUTED)
 stat(
     s,
-    0.8,
-    5.35,
-    3.6,
+    7.4,
+    1.9,
+    5.4,
     f"{d26['total_p50']:.0f} GWh",
-    f"public charging demand 2026, P50 (P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f})",
+    f"public charging demand 2026, P50 (P10 to P90: {d26['total_p10']:.0f} to {d26['total_p90']:.0f})",
 )
 stat(
     s,
-    4.7,
-    5.35,
-    3.6,
+    7.4,
+    3.45,
+    5.4,
     f"{d26['phv_p50']:.0f} GWh",
-    "from taxi & private hire — London's rapid-charging anchor",
-    TEAL,
+    "from taxi and private hire, the anchor of rapid charging in London",
 )
-stat(s, 8.6, 5.35, 3.9, f"{d30['total_p50']:,.0f} GWh", "in 2030, DFES mid pathway", NAVY)
+stat(s, 7.4, 5.0, 5.4, f"{d30['total_p50']:,.0f} GWh", "in 2030, DFES mid pathway")
 footer(s, n)
 
 # 7 calibration
 s = new()
-title(s, "No London usage data is open — so the model is checked against what is observed")
+title(s, "London publishes no charger usage, so the model is checked against what is observed")
 card(
     s,
     0.8,
@@ -341,7 +354,7 @@ card(
     5.9,
     2.1,
     "Energy the network could deliver",
-    f"{n_slow:,} slow + {n_rapid:,} rapid chargers (DfT) × TfL-observed occupancy × charging-time share ⇒ ≈ {supply_gwh:,.0f} GWh a year.",
+    f"{n_slow:,} slow and {n_rapid:,} rapid chargers (DfT) x occupancy observed by TfL x time spent charging gives about {supply_gwh:,.0f} GWh a year.",
 )
 card(
     s,
@@ -350,7 +363,7 @@ card(
     5.9,
     2.1,
     "Modelled demand",
-    f"{d26['total_p50']:.0f} GWh P50 (P10–P90 {d26['total_p10']:.0f}–{d26['total_p90']:.0f}); rapid-type demand ≈ {d26['dest_p50'] + d26['phv_p50']:.0f} GWh — the same order as the rapid side of the supply estimate.",
+    f"{d26['total_p50']:.0f} GWh P50 (P10 to P90: {d26['total_p10']:.0f} to {d26['total_p90']:.0f}). Rapid-type demand is about {d26['dest_p50'] + d26['phv_p50']:.0f} GWh, the same order as the rapid side of the supply estimate.",
 )
 stat(
     s,
@@ -360,18 +373,17 @@ stat(
     f"{K['rapid_sessions_per_charger_day']}",
     "rapid sessions per charger per day implied by the model",
 )
-stat(s, 4.9, 4.2, 3.9, "≈13", "what TfL's 34 % occupancy implies with 38-minute sessions", TEAL)
-stat(s, 9.0, 4.2, 3.9, "≈3", "observed in Dundee's open session log", NAVY)
+stat(s, 4.9, 4.2, 3.9, "13", "implied by TfL occupancy of 34% with 38-minute sessions", TEAL)
+stat(s, 9.0, 4.2, 3.9, "3", "observed in the open session log of Dundee", NAVY)
 text(
     s,
     0.8,
     6.1,
     12.0,
     0.7,
-    "The band is the honest statement: the two levers are the public-charging share of drivers without a driveway and the size of the electric private-hire fleet.",
+    "The interval is the honest statement. The two levers are the public share of drivers without a driveway and the size of the electric private-hire fleet.",
     size=12,
     color=MUTED,
-    italic=True,
 )
 footer(s, n)
 
@@ -379,29 +391,38 @@ footer(s, n)
 s = new()
 title(
     s,
-    "Where the demand lands today — and where queues form at the peak hour",
+    "Where demand lands today, and where queues form at the peak hour",
     "Live map: …/maps/rapid_network_load_2026.html",
 )
-picture(s, "03_site_load_queues.png", 0.6, 1.75, w=8.3)
-stat(
-    s,
-    9.3,
-    1.9,
-    3.6,
-    f"{K['sites_pwait_gt_50']} / {K['rapid_sites']}",
-    "rapid sites with P(wait) > 0.5 at the peak hour",
-)
-stat(
-    s, 9.3, 3.5, 3.6, f"{100 * K['util24_median']:.0f} %", "median 24-hour utilisation of a rapid site", TEAL
-)
+picture(s, "panel_queues.png", 0.6, 1.75, h=4.9)
 text(
     s,
-    9.3,
-    5.1,
-    3.7,
-    1.8,
-    f"Logit station choice on OSM drive times, Erlang-C queues with 38-minute sessions; ports scaled per borough to DfT 50 kW+ totals (median ×{K['port_scale_median']:.1f}).",
-    size=11,
+    0.6,
+    6.7,
+    6.3,
+    0.3,
+    "Rapid sites sized by sessions per day, blue where P(wait) is high",
+    size=10,
+    color=MUTED,
+)
+stat(
+    s,
+    7.4,
+    1.9,
+    5.4,
+    f"{K['sites_pwait_gt_50']} / {K['rapid_sites']}",
+    "rapid sites with P(wait) above 0.5 in the peak hour",
+)
+stat(s, 7.4, 3.45, 5.4, f"{100 * K['util24_median']:.0f}%", "median 24-hour utilisation of a rapid site")
+text(
+    s,
+    7.4,
+    5.0,
+    5.4,
+    1.5,
+    f"Logit station choice on OSM drive times. Erlang C queues with 38-minute sessions. Ports are scaled per borough to DfT totals, median factor {K['port_scale_median']:.1f}.",
+    size=12,
+    color=MUTED,
 )
 footer(s, n)
 
@@ -410,12 +431,12 @@ s = new()
 title(
     s,
     "A new hub mostly takes customers from its neighbours",
-    f"Hub at the hex with the largest unmet demand ({can['candidate']['borough']}); logit with an outside option",
+    f"A hub in the hex with the largest unmet demand, in {can['candidate']['borough']}. Logit with an outside option.",
 )
 cd = CategoryChartData()
-cd.categories = [f"{r['power_kw']} kW × {r['ports']}" for r in can["rows"]]
+cd.categories = [f"{r['power_kw']} kW x {r['ports']}" for r in can["rows"]]
 cd.add_series("new demand", [round(r["new"], 1) for r in can["rows"]])
-cd.add_series("taken from existing sites", [round(r["cannibalised"], 1) for r in can["rows"]])
+cd.add_series("captured from existing sites", [round(r["cannibalised"], 1) for r in can["rows"]])
 gf = s.shapes.add_chart(XL_CHART_TYPE.BAR_STACKED, Inches(0.6), Inches(1.7), Inches(7.6), Inches(4.8), cd)
 ch = gf.chart
 ch.has_title = True
@@ -424,7 +445,7 @@ ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(13)
 ch.has_legend = True
 ch.legend.position = XL_LEGEND_POSITION.BOTTOM
 ch.legend.include_in_layout = False
-for ser, col in zip(ch.series, [TEAL, ORANGE], strict=True):
+for ser, col in zip(ch.series, [ACCENT, INK], strict=True):
     ser.format.fill.solid()
     ser.format.fill.fore_color.rgb = col
 plot = ch.plots[0]
@@ -436,19 +457,26 @@ plot.data_labels.position = XL_LABEL_POSITION.CENTER
 plot.data_labels.font.size = Pt(11)
 plot.data_labels.font.color.rgb = WHITE
 ch.value_axis.has_major_gridlines = True
-ch.value_axis.major_gridlines.format.line.color.rgb = RGBColor(0xDD, 0xE2, 0xE6)
+ch.value_axis.major_gridlines.format.line.color.rgb = BORDER
 ch.value_axis.tick_labels.font.size = Pt(10)
 ch.category_axis.tick_labels.font.size = Pt(11)
 lo = min(r["cannibalisation_share"] for r in can["rows"])
 hi = max(r["cannibalisation_share"] for r in can["rows"])
-stat(s, 8.7, 2.0, 4.2, f"{100 * lo:.0f}–{100 * hi:.0f} %", "of a new hub's sessions come from existing sites")
+stat(
+    s,
+    8.7,
+    2.0,
+    4.2,
+    f"{100 * lo:.0f} to {100 * hi:.0f}%",
+    "of the sessions of a new hub are taken from existing sites",
+)
 text(
     s,
     8.7,
     3.6,
     4.2,
     2.6,
-    "Bigger, faster hubs capture more — and cannibalise a larger share. This is the number an investor needs next to “expected sessions”, and it is exactly what a gap map cannot show.",
+    "Larger and faster hubs capture more sessions and take a larger share from their neighbours. An investor needs this number next to expected sessions. A gap map cannot show it.",
     size=13,
 )
 footer(s, n)
@@ -457,40 +485,91 @@ footer(s, n)
 s = new()
 title(
     s,
-    "Siting 4 × 150 kW hubs under budget, capacity, grid and demand uncertainty",
-    "Live map: …/maps/siting_hubs.html (budgets £5–40M, P50 vs robust)",
+    "Siting 4 x 150 kW hubs under budget, capacity and grid limits",
+    "Live map: …/maps/siting_hubs.html (budgets £5M to £40M, one plan per demand scenario)",
 )
-picture(s, "04_selected_hubs.png", 0.6, 1.7, h=5.2)
-picture(s, "04_budget_curve.png", 7.4, 1.7, w=5.2)
+picture(s, "panel_hubs.png", 0.6, 1.75, h=4.9)
+text(
+    s,
+    0.6,
+    6.7,
+    6.3,
+    0.3,
+    "Unmet rapid demand (grey) and the recommended £20M plan. Blue hubs form the robust core.",
+    size=10,
+    color=MUTED,
+)
+cd = CategoryChartData()
+cd.categories = [f"£{int(b)}M" for b in sorted(sit)]
+cd.add_series("exact, with capacity", [round(sit[b]["covered_p50"]) for b in sorted(sit)])
+cd.add_series(
+    "greedy, capacity ignored", [round(sit[b]["greedy_uncapacitated_covered"]) for b in sorted(sit)]
+)
+gf = s.shapes.add_chart(XL_CHART_TYPE.LINE_MARKERS, Inches(7.3), Inches(1.7), Inches(5.6), Inches(3.3), cd)
+ch = gf.chart
+ch.has_title = True
+ch.chart_title.text_frame.text = "Unmet sessions per day served, by budget"
+ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(12)
+ch.has_legend = True
+ch.legend.position = XL_LEGEND_POSITION.BOTTOM
+ch.legend.include_in_layout = False
+ch.legend.font.size = Pt(10)
+for ser, col in zip(ch.series, [INK, SOFT], strict=True):
+    ser.smooth = False
+    ser.format.line.color.rgb = col
+    ser.format.line.width = Pt(2)
+    ser.marker.format.fill.solid()
+    ser.marker.format.fill.fore_color.rgb = col
+    ser.marker.format.line.color.rgb = col
+ch.value_axis.has_major_gridlines = True
+ch.value_axis.major_gridlines.format.line.color.rgb = BORDER
+ch.value_axis.tick_labels.font.size = Pt(10)
+ch.category_axis.tick_labels.font.size = Pt(10)
 if r20:
-    line = f"£20M ⇒ {r20['n_hubs']} hubs serve {100 * r20['coverage_share']:.0f} % of unmet rapid demand ({r20['covered_p50']:,.0f} of {r20['total_unmet_p50']:,.0f} sessions/day)."
+    line = f"£20M: {r20['rec_n_hubs']} hubs serve {100 * r20['rec_share_p50']:.0f}% of unmet rapid demand ({r20['rec_share_p50'] * r20['total_unmet_p50']:,.0f} of {r20['total_unmet_p50']:,.0f} sessions per day)."
     if r40:
-        line += f" £40M ⇒ {r40['n_hubs']} hubs, {100 * r40['coverage_share']:.0f} %."
+        line += f" £40M: {r40['rec_n_hubs']} hubs, {100 * r40['rec_share_p50']:.0f}%."
     extra = (
-        f" Across {sens['variants']} changed assumptions a median {100 * sens['same_or_adjacent_median']:.0f} % of hubs stay in the same or an adjacent hex."
+        f" Across {sens['variants']} changed assumptions a median of {100 * sens['same_or_adjacent_median']:.0f}% of hubs stay in the same or an adjacent hex."
         if sens
         else ""
     )
     if "rec_plan" in r20:
         extra = (
-            f" Under demand uncertainty the {r20['rec_plan'].upper()} plan has the smallest worst-case regret ({r20['rec_max_regret']:,.0f} sessions/day); robust core {r20['rec_core']} of {r20['rec_n_hubs']} hubs."
+            f" Under demand uncertainty the {r20['rec_plan'].upper()} plan has the smallest worst-case regret ({r20['rec_max_regret']:,.0f} sessions per day). Robust core: {r20['rec_core']} of {r20['rec_n_hubs']} hubs."
             + extra
         )
     text(
         s,
         7.4,
-        5.45,
+        5.15,
         5.5,
-        1.6,
-        [line, f"Capacity-bound: ≈{cap:.0f} sessions/day per hub at P(wait) ≤ 15 %.{extra}"],
+        1.9,
+        [line, f"One hub serves about {cap:.0f} sessions per day at P(wait) of 15% or less.{extra}"],
         size=12,
     )
 footer(s, n)
 
 # 11 transfer
 s = new()
-title(s, "Do context features explain observed utilisation anywhere? A negative result, on purpose")
-picture(s, "05_importance.png", 0.6, 1.7, h=3.9)
+title(s, "Do context features explain observed usage? A negative result, on purpose")
+imp = tr["importance"][:8][::-1]
+cd = CategoryChartData()
+cd.categories = [f["label"] for f in imp]
+cd.add_series("share of model gain, %", [round(100 * f["gain_share"], 1) for f in imp])
+gf = s.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, Inches(0.6), Inches(1.7), Inches(6.3), Inches(4.9), cd)
+ch = gf.chart
+ch.has_title = True
+ch.chart_title.text_frame.text = "Share of model gain, %"
+ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(12)
+ch.has_legend = False
+ch.series[0].format.fill.solid()
+ch.series[0].format.fill.fore_color.rgb = INK
+ch.plots[0].gap_width = 60
+ch.value_axis.has_major_gridlines = True
+ch.value_axis.major_gridlines.format.line.color.rgb = BORDER
+ch.value_axis.tick_labels.font.size = Pt(10)
+ch.category_axis.tick_labels.font.size = Pt(10)
 stat(s, 7.2, 1.7, 2.8, f"{tr['r2_random']:.2f}", "R² with random 5-fold CV", TEAL)
 stat(s, 10.1, 1.7, 2.8, f"{tr['r2_leave_city_out']:.2f}", "R² when the test city is unseen")
 bullets(
@@ -500,9 +579,9 @@ bullets(
     5.7,
     3.2,
     [
-        f"{tr['n_stations']} chargers with open session logs in four cities; LightGBM on OSM context, population and charger power.",
-        f"Charger power and the city's level dominate; rankings do not transfer reliably (Spearman {min(rho):.2f} to {max(rho):.2f} by city).",
-        "Any “geo-embedding site model” must be validated out-of-city against observed usage.",
+        f"{tr['n_stations']} chargers with open session logs in four cities. LightGBM on OSM context, population and charger power.",
+        f"Charger power and the level of each city dominate. Rankings do not transfer reliably (rank correlation {min(rho):.2f} to {max(rho):.2f} by city).",
+        "A site-selection model has to be validated in a city it has not seen, against observed usage.",
     ],
     size=12,
 )
@@ -510,29 +589,33 @@ footer(s, n)
 
 # 12 stack
 s = new()
-title(s, "Engineering: reproducible from a clean clone")
+title(s, "Reproducible from a clean clone")
 rows = [
-    ("Spatial", "H3 · GeoPandas · Shapely · pyproj", "hex grid for siting; areal interpolation from LSOAs"),
     (
-        "Network",
-        "OSMnx · igraph",
-        "many-to-many drive times on a 131k-node graph in seconds, no routing server",
+        "Spatial",
+        "H3, GeoPandas, Shapely, pyproj",
+        "Equal-area hex grid and areal interpolation from census units",
     ),
     (
-        "Statistics & ML",
-        "esda · libpysal · LightGBM · scikit-learn",
-        "Moran's I, Gi*; spatial cross-validation by default",
+        "Network",
+        "OSMnx, igraph",
+        "Drive times on a graph of 131,000 nodes in seconds, no routing server",
+    ),
+    (
+        "Statistics and ML",
+        "esda, libpysal, LightGBM, scikit-learn",
+        "Moran's I, Gi*, spatial cross-validation by default",
     ),
     (
         "Optimisation",
-        "SciPy milp / linprog (HiGHS)",
-        "sparse capacitated MCLP and exact fixed-plan LPs; MIP gap recorded per solve",
+        "SciPy milp and linprog (HiGHS)",
+        "Sparse MILP, exact evaluation of plans, every MIP gap recorded",
     ),
-    ("Choice & queues", "NumPy", "Erlang C, multinomial logit, new vs cannibalised demand — unit-tested"),
+    ("Choice and queues", "NumPy", "Erlang C and logit, tested against closed forms"),
     (
         "Delivery",
-        "MapLibre GL JS · matplotlib · GitHub Pages",
-        "offline-capable maps, HTML slides EN/RU, this PPTX",
+        "MapLibre GL JS, matplotlib, GitHub Pages",
+        "Maps that also work offline, HTML slides, this PPTX",
     ),
 ]
 tbl = s.shapes.add_table(len(rows), 3, Inches(0.8), Inches(1.5), Inches(11.8), Inches(3.9)).table
@@ -547,27 +630,21 @@ for i, (a, b, c) in enumerate(rows):
         para.runs[0].font.size = Pt(12)
         para.runs[0].font.name = BODY
         para.runs[0].font.bold = j == 0
-        para.runs[0].font.color.rgb = TEAL if j == 1 else (NAVY if j == 0 else INK)
+        para.runs[0].font.color.rgb = INK if j < 2 else MUTED
 chips = [
-    f"{K['n_tests']} tests · CI on Python 3.11 / 3.12",
-    "make models → maps → slides",
+    f"{K['n_tests']} tests, CI on Python 3.11 and 3.12",
+    "make models maps slides",
     f"{K['n_sources']} data cards with licences",
-    "code MIT · data ODbL / OGL / CC BY",
+    "Code MIT, data ODbL, OGL, CC BY",
 ]
 for i, c in enumerate(chips):
-    shp = s.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8 + i * 3.0), Inches(5.9), Inches(2.85), Inches(0.55)
-    )
-    shp.fill.solid()
-    shp.fill.fore_color.rgb = NAVY
-    shp.line.fill.background()
-    shp.adjustments[0] = 0.5
-    text(s, 0.9 + i * 3.0, 6.02, 2.65, 0.35, c, size=11, color=WHITE, align=PP_ALIGN.CENTER)
+    box(s, 0.8 + i * 3.0, 5.9, 2.85, 0.55)
+    text(s, 0.9 + i * 3.0, 6.04, 2.65, 0.35, c, size=11, align=PP_ALIGN.CENTER)
 footer(s, n)
 
 # 13 limitations
 s = new()
-title(s, "Limitations — and how the whole thing would be proven wrong")
+title(s, "Limitations, and how this could be proven wrong")
 card(
     s,
     0.8,
@@ -575,7 +652,7 @@ card(
     5.9,
     5.2,
     "Known limitations",
-    "• No open London charger-level usage; behaviour from other UK cities and fleet trials.\n• Open Charge Map covers most sites but not every port; residual gaps closed per borough against DfT totals.\n• Choice coefficients are literature-informed; notebook 04 shows what moves when they change.\n• Grid constraints stop at primary-substation headroom.\n• Area-weighted LSOA → hex interpolation; ≈1.4 % of population in dropped edge hexes.",
+    "London publishes no charger-level usage. Behaviour comes from other UK cities and fleet trials.\n\nOpen Charge Map covers most sites but not every port. The rest is closed per borough against DfT totals.\n\nChoice coefficients come from the literature, not from estimation. The sensitivity table shows what they move.\n\nGrid constraints stop at the headroom of primary substations.\n\nInterpolation is area-weighted from census units. About 1.4% of residents fall in dropped edge hexes.",
 )
 card(
     s,
@@ -583,27 +660,27 @@ card(
     1.5,
     5.9,
     5.2,
-    "The post-hoc test",
-    "DfT and Zapmap publish borough device counts quarterly; TfL publishes utilisation by charger type.\n\nHubs opened after July 2026 in hexes flagged here as high unmet demand should reach above-median utilisation within a year.\n\nIf not, the model card names the priors to revisit first: private-hire fleet size, public share without home charging, choice radius.\n\nPredict → deploy → measure → retrain is the product; the maps are its interface.",
-    fill=RGBColor(0xE6, 0xF2, 0xF0),
+    "The test",
+    "DfT and Zapmap publish device counts by borough every quarter. TfL publishes utilisation by charger type.\n\nHubs opened after July 2026 in hexes flagged here should reach above-median utilisation within a year.\n\nIf not, the model card names the priors to revisit first: private-hire fleet size, public share without home charging, choice radius.\n\nPredict, deploy, measure, retrain. That loop is the product. The maps are its interface.",
+    fill=PALE,
 )
 footer(s, n)
 
 # 14 value
 s = new()
-title(s, "What an operator or investor gets — and what comes next")
+title(s, "What an operator or investor gets, and what comes next")
 gets = [
     (
         "Ranked candidates with intervals",
-        "Expected sessions per day, P10–P90, share taken from neighbours, substation headroom and drive-time catchment for every hex.",
+        "Expected sessions per day with P10 to P90, the share taken from neighbours, substation headroom and drive-time catchment for every hex.",
     ),
     (
         "Capacity, not just location",
-        "Ports and power sized from the queue model against a service level, instead of a fixed template.",
+        "Ports and power sized from the queue model against a service level, not from a template.",
     ),
     (
-        "Portfolio robustness",
-        "Which hubs every demand scenario agrees on (the robust core) and which are interchangeable with neighbours — build the core first, phase the rest.",
+        "A robust plan",
+        "The hubs every demand scenario agrees on are built first. The rest are phased as utilisation data arrive.",
     ),
     (
         "Next, with operator data",
@@ -625,15 +702,15 @@ text(
     3.6,
     [
         "Repository: github.com/m-erts/chargescape-london",
-        "Slides with live maps: m-erts.github.io/chargescape-london/slides/ (Russian: /slides/ru.html)",
+        "Slides with live maps: m-erts.github.io/chargescape-london/slides/",
         "Maps: m-erts.github.io/chargescape-london/maps/",
-        "Notebooks 01–05: supply audit · demand · choice & queues · siting · transfer test",
-        "Reproduce: pip install -e .[all] → make models maps slides",
+        "Notebooks 01 to 05: supply audit, demand, choice and queues, siting, transfer test",
+        "Reproduce: pip install -e .[all], then make models maps slides",
     ],
     size=16,
     color=WHITE,
 )
-text(s, 0.8, 6.3, 11.5, 0.5, "Marija Ercegovac · github.com/m-erts", size=13, color=SOFT)
+text(s, 0.8, 6.3, 11.5, 0.5, "Marija Ercegovac, github.com/m-erts", size=13, color=SOFT)
 
 out = ROOT / "reports" / "ChargeScape_London.pptx"
 prs.save(out)

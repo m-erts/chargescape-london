@@ -1,3 +1,38 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ChargeScape London · maps</title>
-<style>body{font:16px/1.55 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;max-width:720px;margin:48px auto;padding:0 20px;color:#1a2027;background:#fff} h1{font:600 30px/1.2 Georgia,serif;margin:0 0 6px} p{color:#4b5763} ul{padding-left:1.1em} li{margin:14px 0} a{color:#0a665c;font-weight:600} span{color:#4b5763;font-size:14px}</style></head>
-<body><h1>ChargeScape London — interactive maps</h1><p>MapLibre GL JS; basemap © CARTO © OpenStreetMap contributors. Each map works offline on a plain background if the basemap cannot load. <a href="../index.html">Project page</a> · <a href="../slides/">slides</a> · <a href="https://github.com/m-erts/chargescape-london">repository</a></p><ul><li><a href="supply_2026.html">Who has chargers, who has EVs</a><br><span>13k charging sites by power over private EVs per household or share of flats (observed).</span></li><li><a href="demand_2026.html">Public charging demand</a><br><span>Monte Carlo demand surface, P10/P50/P90 and 2030 (model).</span></li><li><a href="rapid_network_load_2026.html">Rapid network: access, load and queues</a><br><span>Drive time to rapid sites; expected load and peak-hour waiting per site (model).</span></li><li><a href="siting_hubs.html">Where the next hubs go</a><br><span>Hub locations for £5–40M budgets, P50 vs robust solutions (optimisation).</span></li></ul></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maps | ChargeScape London</title><meta name="description" content="Interactive maps of the ChargeScape London project.">
+<script>(function(){var t=new URLSearchParams(location.search).get('theme');
+if(t!=='dark'&&t!=='light'){try{t=localStorage.getItem('cs-theme')}catch(e){t=null}}
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);})();
+function csIsDark(){var a=document.documentElement.getAttribute('data-theme');
+return a?a==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function csToken(n){return getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();}</script><style>
+@font-face{font-family:"Geist";src:url("../vendor/geist-1.4.2/Geist-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Geist Mono";src:url("../vendor/geist-1.4.2/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+:root{color-scheme:light;--bg:#FFFFFF;--fg:#111111;--muted:#666666;--neutral:#888888;--border:#EAEAEA;--surface:#FAFAFA;--accent:#0070F3;--r1:#F2F2F2;--r2:#D9D9D9;--r3:#B3B3B3;--r4:#858585;--r5:#4D4D4D;--r6:#111111;--radius:0px;--ease-out:cubic-bezier(0.23,1,0.32,1);--z-map-ui:10;--z-bar:20}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#000000;--fg:#EDEDED;--muted:#888888;--neutral:#888888;--border:#333333;--surface:#0A0A0A;--accent:#0070F3;--r1:#1A1A1A;--r2:#333333;--r3:#555555;--r4:#808080;--r5:#B3B3B3;--r6:#EDEDED;}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:"Geist","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.mono,code,kbd,td.num,th.num{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--neutral);text-underline-offset:0.2em;transition:text-decoration-color 150ms ease}
+@media (hover:hover) and (pointer:fine){a:hover{text-decoration-color:var(--fg)}}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms !important;animation-duration:0.01ms !important}}
+
+body{font-size:15px;line-height:1.55}
+main{max-width:880px;margin:0 auto;padding:64px 24px}
+h1{font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-0.03em;margin:0 0 12px}
+p{color:var(--muted);margin:0 0 32px;max-width:65ch}
+table{width:100%;border-collapse:collapse;border:1px solid var(--border)}
+th,td{text-align:left;vertical-align:top;padding:14px 16px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:0}
+th{font-weight:500;color:var(--muted);font-size:13px;background:var(--surface)}
+td.status{color:var(--muted);font-size:13px;white-space:nowrap}
+nav{display:flex;gap:16px;margin-top:24px;font-size:14px;color:var(--muted)}
+</style></head><body><main>
+<h1>Interactive maps</h1>
+<p>MapLibre GL JS with CARTO basemaps. Each map follows the light or dark system theme and still draws its data on a plain background when the basemap cannot load.</p>
+<table><thead><tr><th scope="col">Map</th><th scope="col">Shows</th><th scope="col">Status</th></tr></thead><tbody><tr><td><a href="supply_2026.html">Who has chargers, who has EVs</a></td><td>13,174 charging sites by power over private EVs per household or the share of flats.</td><td class="status mono">observed</td></tr><tr><td><a href="demand_2026.html">Public charging demand</a></td><td>Monte Carlo demand surface with P10, P50, P90 and 2030.</td><td class="status mono">model</td></tr><tr><td><a href="rapid_network_load_2026.html">Rapid network: access, load and queues</a></td><td>Drive time to rapid sites, expected load and peak-hour waiting per site.</td><td class="status mono">model</td></tr><tr><td><a href="siting_hubs.html">Where the next hubs go</a></td><td>Hub locations for budgets of £5M to £40M, with the robust core.</td><td class="status mono">optimisation</td></tr></tbody></table>
+<nav aria-label="Project"><a href="../slides/">Slides</a><a href="../index.html">Project</a><a href="https://github.com/m-erts/chargescape-london">GitHub</a></nav>
+</main></body></html>

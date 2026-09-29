@@ -6,7 +6,8 @@ from shapely.geometry import Point
 from chargescape.features import travel_time as tt_mod
 from chargescape.features.supply import dedupe_within, harmonise_chargers
 from chargescape.optimize.siting_pipeline import hub_capacity_sessions_day, unmet_demand
-from chargescape.viz.export_maplibre import _breaks, _legend_html, _step_expr
+from chargescape.viz.design import DARK, LIGHT, tokens_css
+from chargescape.viz.export_maplibre import _breaks, _class_labels, _legend_ramp, _segmented
 
 
 def test_hub_capacity_grows_with_tolerated_wait_and_ports():
@@ -72,10 +73,22 @@ def test_travel_time_cache_is_signature_checked(tmp_path, monkeypatch):
     assert not np.allclose(a, b)  # stale cache is not reused
 
 
-def test_map_classes_and_expressions():
+def test_map_classes_and_legend():
     br = _breaks(pd.Series(np.arange(1, 101, dtype=float)), k=4)
     assert br == sorted(br) and len(br) == 3
-    expr = _step_expr("v", br, ["#000", "#111", "#222", "#333"])
-    assert expr[:3] == ["step", ["coalesce", ["get", "v"], 0], "#000"] and len(expr) == 3 + 2 * len(br)
-    html = _legend_html("t", br, ["#000", "#111", "#222", "#333"])
-    assert html.count('class="lg"') == 4
+    labels = _class_labels(br, " kW")
+    assert len(labels) == 4 and labels[0].startswith("under ") and labels[-1].endswith(" and over")
+    assert all(dash not in label for label in labels for dash in ("\u2013", "\u2014"))
+    html = _legend_ramp("t", br, key="k", hidden=True)
+    assert html.count('class="sw r') == 4 and 'data-legend="k"' in html and " hidden" in html
+    seg = _segmented("g", "Group", [("a", "A"), ("b", "B")], "b")
+    assert seg.count("<button") == 2 and seg.count('aria-pressed="true"') == 1
+
+
+def test_design_tokens_cover_both_themes():
+    assert set(LIGHT) == set(DARK)
+    css = tokens_css("../vendor")
+    assert "prefers-color-scheme:dark" in css and ':root[data-theme="dark"]' in css
+    assert "prefers-reduced-motion" in css and ":focus-visible" in css
+    for name, value in LIGHT.items():
+        assert f"--{name}:{value}" in css
