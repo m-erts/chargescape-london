@@ -60,7 +60,7 @@ def main() -> None:
         ("docs/methodology.md", "Methodology"),
         ("docs/architecture.md", "Architecture & stack"),
         ("docs/model_card.md", "Model card"),
-        ("docs/data_catalog/README.md", f"Data catalog ({K['n_sources']} sources)"),
+        ("docs/data_catalog/README.md", f"Data catalog ({K['n_sources']} datasets)"),
         ("docs/roadmap.md", "Roadmap"),
     ]
     stat_html = "".join(f'<div class="stat"><b>{a}</b><span>{b}</span></div>' for a, b in stats)

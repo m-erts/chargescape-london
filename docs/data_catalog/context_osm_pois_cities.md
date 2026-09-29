@@ -11,7 +11,7 @@ size_mb: 26.8 (raw Overpass JSON, four cities; 0.3 MB of it are the superseded p
 spatial_unit: point (charge point / London site); counts within 300 m and 800 m buffers, distances in metres, in a local metric CRS (EPSG:27700 UK, 26910 Palo Alto, 26913 Boulder)
 temporal: snapshot of the live OSM database on 2026-09-10 (Overpass `timestamp_osm_base` 19:31-19:36 UTC, per .meta.json); London POIs / roads from the Geofabrik extract with OSM timestamp 2026-09-09, TfL stations retrieved 2026-09-10
 script: src/chargescape/features/station_context.py
-raw_path: data/raw/context/{dundee,pkc,palo_alto,boulder}/  (London: data/interim/osm/pois.parquet, london_major_roads.parquet, data/interim/transit/tfl_stations.parquet)
+raw_path: "data/raw/context/{dundee,pkc,palo_alto,boulder}/  (London: data/interim/osm/pois.parquet, london_major_roads.parquet, data/interim/transit/tfl_stations.parquet)"
 ---
 
 ## What it is

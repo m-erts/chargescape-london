@@ -2,7 +2,7 @@
 id: sessions_leeds
 title: Leeds City Council - Electric vehicle chargepoints operated by LCC (sessions, Apr 2014 - Mar 2021)
 provider: Leeds City Council via Data Mill North (dataset 2lx68)
-url: https://datamillnorth.org/dataset/2lx68 (mirrored on data.gov.uk: electric-vehicle-chargepoints-operated-by-leeds-city-council)
+url: "https://datamillnorth.org/dataset/2lx68 (mirrored on data.gov.uk: electric-vehicle-chargepoints-operated-by-leeds-city-council)"
 download_url: https://datamillnorth.org/download/2lx68/<uuid>/<year> EVCP use <Qn>.csv - 16 files, ids listed in src/chargescape/data/sessions_open.py (LEEDS_FILES)
 licence: Open Government Licence v3 (Data Mill North package licence)
 status: observed

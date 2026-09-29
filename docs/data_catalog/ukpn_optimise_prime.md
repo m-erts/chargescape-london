@@ -7,7 +7,7 @@ download_url: Azure Blob container https://ukpnoppublicdata001.blob.core.windows
 licence: CC BY 4.0
 status: observed (trial telemetry Aug-2018..Sep-2022; core trial period 2021-07-01..2022-06-30)
 retrieved: 2026-09-10
-size_mb: raw 1,490 downloaded (116 of 1,027 files: every table <100 MB in full + one partition of each large table); interim ~300
+size_mb: "raw 1,490 downloaded (116 of 1,027 files: every table <100 MB in full + one partition of each large table); interim ~300"
 spatial_unit: none for sessions (WS1 charger ids only); outward postcode district for WS1 trips; depot name (9 Royal Mail depots, London/Kent) for WS2; London borough for WS3
 temporal: WS1 charging 2020-06..2022-07 (plus 20 stray 2014 rows); WS1 trips 2018-08..2022-09 monthly files; WS2 2020-07..2022-09; WS3 static (5 time windows)
 script: src/chargescape/data/ukpn.py  (part `op`)

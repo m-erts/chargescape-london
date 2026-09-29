@@ -7,7 +7,7 @@ download_url: https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/belib-
 licence: ODbL (both Paris datasets - verified in API metadata); EDF challenge data ODbL, code GPLv3 (LICENSE.md in repo)
 status: observed
 retrieved: 2026-09-10
-size_mb: 194 (raw: EDF train.csv 172 + test.csv 14 + daily JSON snapshots ~4); 2.4 (occupancy parquet)
+size_mb: "194 (raw: EDF train.csv 172 + test.csv 14 + daily JSON snapshots ~4); 2.4 (occupancy parquet)"
 spatial_unit: point (charge point / station)
 temporal: real-time status snapshot (one per run-day, dataset refreshes every ~5 min); EDF series 15-min, 2020-07-03 .. 2021-02-18 (train; test = 2021-02-19 .. 2021-03-xx covariates only)
 script: src/chargescape/data/sessions_open.py (fetch_paris_belib / harmonise_paris_belib)

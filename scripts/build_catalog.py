@@ -29,6 +29,12 @@ def main() -> None:
         if fm:
             fm["_file"] = p.name
             rows.append(fm)
+
+    def label(status: str) -> str:
+        st = str(status).lower()
+        parts = [w for w in ("observed", "proxy", "synthetic") if w in st]
+        return " + ".join(parts) if parts else str(status)
+
     lines = [
         "# Data catalog",
         "",
@@ -39,10 +45,10 @@ def main() -> None:
     ]
     for r in rows:
         lines.append(
-            f"| {r.get('id', '')} | [{r.get('title', '')}]({r.get('url', '')}) | {r.get('provider', '')} | {r.get('status', '')} | {r.get('licence', '')} | {r.get('spatial_unit', '')} | {r.get('temporal', '')} | {r.get('size_mb', '')} | `{r.get('script', '')}` | [{r['_file']}]({r['_file']}) |"
+            f"| {r.get('id', '')} | [{r.get('title', '')}]({r.get('url', '')}) | {r.get('provider', '')} | {label(r.get('status', ''))} | {r.get('licence', '')} | {r.get('spatial_unit', '')} | {r.get('temporal', '')} | {r.get('size_mb', '')} | `{r.get('script', '')}` | [{r['_file']}]({r['_file']}) |"
         )
     (CAT / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {CAT / 'README.md'} with {len(rows)} sources")
+    print(f"wrote {CAT / 'README.md'} with {len(rows)} datasets")
 
 
 if __name__ == "__main__":

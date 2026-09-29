@@ -2,9 +2,9 @@
 id: sessions_perth_kinross
 title: Perth & Kinross Council - EV Charge Station Use (sessions, Sep 2016 - Aug 2019) + charging points layer
 provider: Perth & Kinross Council (ChargePlace Scotland back-office export)
-url: https://data.pkc.gov.uk/ (ArcGIS Hub): datasets perth-kinross::ev-chargestation-use-sept-2016-to-aug-2017, ...-sept-2017-to-aug-2018, ...ev-charge-station-use-sept-2018-to-aug-2019, perth-kinross::electric-vehicle-charging-points
+url: "https://data.pkc.gov.uk/ (ArcGIS Hub): datasets perth-kinross::ev-chargestation-use-sept-2016-to-aug-2017, ...-sept-2017-to-aug-2018, ...ev-charge-station-use-sept-2018-to-aug-2019, perth-kinross::electric-vehicle-charging-points"
 download_url: https://www.arcgis.com/sharing/rest/content/items/<id>/data with ids 79cec80b01764d9db32961c3476c9346 (2016-17), 93748dde99cd45468a5e9c08f61c1953 (2017-18), ca6cae3df2624832a2eaf678f2eabee8 (2018-19); stations https://services-eu1.arcgis.com/WD0cvOmDKf7CA0Xy/arcgis/rest/services/Electric_Vehicle_Charging_Points/FeatureServer/10 (or data.pkc.gov.uk/api/download/v1/items/5b33371b1bca49808614a7d2452ac418/csv?layers=10)
-licence: Open Government Licence v3 (per-item licenseInfo: "Open Government Licence. An acknowledgement of the source is required" - Perth and Kinross Council; station layer also contains OS OpenData, (c) Crown copyright)
+licence: "Open Government Licence v3 (per-item licenseInfo: \"Open Government Licence. An acknowledgement of the source is required\" - Perth and Kinross Council; station layer also contains OS OpenData, (c) Crown copyright)"
 status: observed
 retrieved: 2026-09-10
 size_mb: 8.5 (raw); 2.1 (parquet)

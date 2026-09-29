@@ -1,6 +1,6 @@
 ---
 id: chargepoints_ocm
-title: Open Charge Map v3 POI API – Greater London (NOT acquired: API key required)
+title: "Open Charge Map v3 POI API – Greater London (NOT acquired: API key required)"
 provider: Open Charge Map (OCM Foundation / openchargemap.org community)
 url: https://openchargemap.org/site/develop/api
 download_url: https://api.openchargemap.io/v3/poi/?output=json&countrycode=GB&boundingbox=(51.28,-0.51),(51.70,0.33)&maxresults=10000&compact=true&verbose=false

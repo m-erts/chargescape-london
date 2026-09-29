@@ -9,7 +9,7 @@ status: observed
 retrieved: 2026-09-10
 size_mb: 364 raw (60.6 + 62.2 + 241.6, UK-wide CSV) / 7.6 interim (London)
 spatial_unit: LSOA 2021 (UK; London extract = 4,994 LSOAs)
-temporal: quarterly, end of quarter; VEH0145 / VEH0135 2011 Q4 - 2026 Q1, VEH0125 2009 Q4 - 2026 Q1 (London extract keeps 2019 Q1+); release of 15 July 2026 ("Vehicle licensing statistics: January to March 2026")
+temporal: "quarterly, end of quarter; VEH0145 / VEH0135 2011 Q4 - 2026 Q1, VEH0125 2009 Q4 - 2026 Q1 (London extract keeps 2019 Q1+); release of 15 July 2026 (\"Vehicle licensing statistics: January to March 2026\")"
 script: src/chargescape/data/vehicles.py
 raw_path: data/raw/vehicles/
 ---

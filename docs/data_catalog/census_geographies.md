@@ -4,7 +4,7 @@ title: ONS Open Geography Portal - LSOA 2021 / LAD 2024 boundaries, lookups and 
 provider: Office for National Statistics (Open Geography Portal)
 url: https://geoportal.statistics.gov.uk/
 download_url: https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/<service>/FeatureServer/0/query (services listed below)
-licence: OGL v3 (Source: Office for National Statistics licensed under the Open Government Licence v3.0; contains OS data (c) Crown copyright and database right 2025)
+licence: "OGL v3 (Source: Office for National Statistics licensed under the Open Government Licence v3.0; contains OS data (c) Crown copyright and database right 2025)"
 status: observed
 retrieved: 2026-09-10
 size_mb: 13.4 raw (cached JSON pages) / 6.6 interim (GeoParquet)

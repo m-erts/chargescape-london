@@ -27,6 +27,13 @@ def num(x: float, lang: str, dec: int = 0) -> str:
     return s.replace(",", " ").replace(".", ",") if lang == "ru" else s
 
 
+def ru_n(n: int, one: str, few: str, many: str) -> str:
+    """Russian numeral agreement: 1 набор, 2 набора, 5 наборов, 21 набор, 32 набора."""
+    k = abs(int(n))
+    form = many if 11 <= k % 100 <= 14 else one if k % 10 == 1 else few if 2 <= k % 10 <= 4 else many
+    return f"{num(k, 'ru')} {form}"
+
+
 def pct(x: float, lang: str) -> str:
     return f"{round(100 * x)} %" if lang == "ru" else f"{round(100 * x)} %"
 
@@ -122,9 +129,9 @@ def slides(lang: str) -> list[str]:
         slide(f"""
 <h2>{L("Charging is an infrastructure business that lives or dies on utilisation", "Зарядная инфраструктура — бизнес, который живёт загрузкой")}</h2>
 <div class="stats">
-  {stat(n(K["chargers_total"]), L(f"public chargers in London (DfT, {K['dft_date']})", "публичных зарядок в Лондоне (DfT, 1 июля 2026)"))}
+  {stat(n(K["chargers_total"]), L(f"public chargers in London (DfT, {K['dft_date']})", "публичные зарядки в Лондоне (DfT, 1 июля 2026)"))}
   {stat(p(K["rapid_share"]), L("of them are 50 kW+; across the UK: 24 %", "из них мощностью 50 кВт+; по Великобритании — 24 %"), "teal")}
-  {stat(L("300k", "300 тыс."), L("plug-in cars kept in London (DfT, Q1 2026)", "подключаемых автомобилей в Лондоне (DfT, I кв. 2026)"), "navy")}
+  {stat(L("300k", "300 тыс."), L("plug-in cars kept in London (DfT, Q1 2026)", "подключаемые автомобили в Лондоне (DfT, I кв. 2026)"), "navy")}
   {stat(p(0.34), L("occupancy of rapid units (TfL, 2025)", "занятость быстрых зарядок (TfL, 2025)"))}
 </div>
 <div class="cols">
@@ -137,8 +144,8 @@ def slides(lang: str) -> list[str]:
         (
             L("Labels on every dataset.", "Метка у каждого набора данных."),
             L(
-                f"observed / proxy / synthetic — {K['n_sources']} sources in the catalog, and the label follows the number into every table.",
-                f"observed / proxy / synthetic — {K['n_sources']} источников в каталоге, и метка сопровождает число во всех таблицах.",
+                f"observed / proxy / synthetic — {K['n_sources']} datasets in the catalog, and the label follows the number into every table.",
+                f"observed / proxy / synthetic — {ru_n(K['n_sources'], 'набор данных', 'набора данных', 'наборов данных')} в каталоге, и метка сопровождает число во всех таблицах.",
             ),
         ),
         (
@@ -244,12 +251,12 @@ def slides(lang: str) -> list[str]:
     )
     out.append(
         slide(f"""
-<h2>{L(f"{K['n_sources']} open sources, each labelled observed, proxy or synthetic", f"{K['n_sources']} открытых источников, у каждого метка observed, proxy или synthetic")}</h2>
+<h2>{L(f"{K['n_sources']} open datasets, each labelled observed, proxy or synthetic", ru_n(K["n_sources"], "открытый набор данных", "открытых набора данных", "открытых наборов данных") + " — у каждого метка observed, proxy или synthetic")}</h2>
 <div class="grid3">{cells}</div>
 <div class="stats three">
- {stat(n(K["sites_total"]), L("charging sites after de-duplicating OCM, OSM and the 2021 registry within 50 m", "зарядных площадок после дедупликации OCM, OSM и реестра 2021 в радиусе 50 м"), "navy")}
- {stat(n(K["n_hexes"]), L("H3 hexes at resolution 8 (0.74 km²) covering Greater London", "гексов H3 разрешения 8 (0,74 км²) на весь Большой Лондон"), "teal")}
- {stat(n(tr["n_stations"]), L("chargers with observed usage used to test transfer", "зарядок с наблюдаемой загрузкой для проверки переноса"))}
+ {stat(n(K["sites_total"]), L("charging sites after de-duplicating OCM, OSM and the 2021 registry within 50 m", "зарядные площадки после дедупликации OCM, OSM и реестра 2021 в радиусе 50 м"), "navy")}
+ {stat(n(K["n_hexes"]), L("H3 hexes at resolution 8 (0.74 km²) covering Greater London", "гексы H3 разрешения 8 (0,74 км²) на весь Большой Лондон"), "teal")}
+ {stat(n(tr["n_stations"]), L("chargers with observed usage used to test transfer", "зарядки с наблюдаемой загрузкой для проверки переноса"))}
 </div>""")
     )
 
@@ -306,7 +313,7 @@ def slides(lang: str) -> list[str]:
  {card(L("Modelled demand", "Смоделированный спрос"), "<p>" + L(f"{n(d26['total_p50'])} GWh P50 (P10–P90 {n(d26['total_p10'])}–{n(d26['total_p90'])}); rapid-type demand (destination + PHV) ≈ {n(d26['dest_p50'] + d26['phv_p50'])} GWh — the same order as the rapid side of the supply estimate.", f"{n(d26['total_p50'])} ГВт·ч P50 (P10–P90 {n(d26['total_p10'])}–{n(d26['total_p90'])}); спрос быстрого типа (места назначения + PHV) ≈ {n(d26['dest_p50'] + d26['phv_p50'])} ГВт·ч — тот же порядок, что и быстрая часть оценки предложения.") + "</p>")}
 </div>
 <div class="stats three">
- {stat(n(K["rapid_sessions_per_charger_day"], 1), L("rapid sessions per charger per day implied by the model", "сессий в сутки на быструю зарядку по модели"))}
+ {stat(n(K["rapid_sessions_per_charger_day"], 1), L("rapid sessions per charger per day implied by the model", "сессии в сутки на одну быструю зарядку по модели"))}
  {stat("≈13", L("what TfL's 34 % occupancy implies with 38-minute sessions", "что даёт занятость TfL 34 % при сессии 38 минут"), "teal")}
  {stat("≈3", L("observed in Dundee's open session log (a small city)", "наблюдается в открытом журнале сессий Данди (небольшой город)"), "navy")}
 </div>
@@ -318,7 +325,7 @@ def slides(lang: str) -> list[str]:
 <h2>{L("Where the demand lands today — and where queues form at the peak hour", "Куда спрос приходит сегодня — и где в пиковый час образуются очереди")} {tag}</h2>
 <div class="mapwrap">{live("rapid_network_load_2026", "network")}
 <aside>
- {stat(f"{n(K['sites_pwait_gt_50'])} / {n(K['rapid_sites'])}", L("rapid sites with P(wait) > 0.5 at the peak hour", "быстрых площадок с P(ожидания) > 0,5 в пиковый час"))}
+ {stat(f"{n(K['sites_pwait_gt_50'])} / {n(K['rapid_sites'])}", L("rapid sites with P(wait) > 0.5 at the peak hour", "быстрые площадки с P(ожидания) > 0,5 в пиковый час"))}
  {stat(p(K["util24_median"]), L("median 24-hour utilisation of a rapid site", "медианная суточная загрузка быстрой площадки"), "teal")}
  <p class="note">{L(f"Multinomial-logit station choice on OSM drive times (igraph) and Erlang-C queues with 38-minute sessions. Ports of mapped sites are scaled per borough to DfT's official 50 kW+ totals (median ×{n(K['port_scale_median'], 1)}).", f"Мультиномиальный логит выбора станции по времени в пути на графе OSM (igraph) и очереди Эрланга C с сессией 38 минут. Порты площадок откалиброваны по официальным итогам DfT для 50 кВт+ в каждом боро (медианный коэффициент ×{n(K['port_scale_median'], 1)}).")}</p>
 </aside></div>""")
@@ -329,7 +336,7 @@ def slides(lang: str) -> list[str]:
 <h2>{L("A new hub mostly takes customers from its neighbours", "Новый хаб в основном забирает клиентов у соседей")}</h2>
 <p class="lead">{L(f"Hub placed in the hex with the largest unmet demand ({can['candidate']['borough']}); multinomial logit with an outside option, so “new” means demand that would otherwise not use a rapid charger.", f"Хаб в гексе с наибольшим неудовлетворённым спросом ({can['candidate']['borough']}); мультиномиальный логит с внешней альтернативой: «новый» спрос — тот, что иначе не пришёл бы на быструю зарядку.")}</p>
 <div class="two">{cannibal_bars(lang)}
-<div>{stat(f"{p(can_lo)}–{p(can_hi)}", L("of a new hub's sessions come from existing sites", "сессий нового хаба приходят с существующих площадок"))}
+<div>{stat(f"{round(100 * can_lo)}–{p(can_hi)}", L("of a new hub's sessions come from existing sites", "сессий нового хаба приходят с существующих площадок"))}
 <p>{L("Bigger, faster hubs capture more — and cannibalise a larger share. This is the number an investor needs next to “expected sessions”, and it is exactly what a gap map cannot show.", "Более крупные и мощные хабы захватывают больше — и больше отбирают у соседей. Это число инвестору нужно рядом с «ожидаемыми сессиями», и именно его не покажет карта пробелов.")}</p></div></div>""")
     )
 
@@ -343,12 +350,12 @@ def slides(lang: str) -> list[str]:
     if r20:
         siting_line = L(
             f"£20M ⇒ {r20['n_hubs']} hubs serving {p(r20['coverage_share'])} of unmet rapid demand ({n(r20['covered_p50'])} of {n(r20['total_unmet_p50'])} sessions/day).",
-            f"£20 млн ⇒ {r20['n_hubs']} хабов закрывают {p(r20['coverage_share'])} неудовлетворённого спроса ({n(r20['covered_p50'])} из {n(r20['total_unmet_p50'])} сессий в сутки).",
+            f"£20 млн ⇒ {ru_n(r20['n_hubs'], 'хаб', 'хаба', 'хабов')}; они закрывают {p(r20['coverage_share'])} неудовлетворённого спроса ({n(r20['covered_p50'])} из {n(r20['total_unmet_p50'])} сессий в сутки).",
         )
         if r40:
             siting_line += L(
                 f" £40M ⇒ {r40['n_hubs']} hubs, {p(r40['coverage_share'])}.",
-                f" £40 млн ⇒ {r40['n_hubs']} хабов, {p(r40['coverage_share'])}.",
+                f" £40 млн ⇒ {ru_n(r40['n_hubs'], 'хаб', 'хаба', 'хабов')}, {p(r40['coverage_share'])}.",
             )
     out.append(
         slide(f"""
@@ -394,7 +401,7 @@ def slides(lang: str) -> list[str]:
                 [
                     L(
                         f"{tr['n_stations']} chargers with open session logs in four cities; LightGBM on OpenStreetMap context, population and charger power.",
-                        f"{tr['n_stations']} зарядки с открытыми журналами сессий в четырёх городах; LightGBM на признаках OSM, населении и мощности зарядки.",
+                        f"{ru_n(tr['n_stations'], 'зарядка', 'зарядки', 'зарядок')} с открытыми журналами сессий в четырёх городах; LightGBM на признаках OSM, населении и мощности зарядки.",
                     ),
                     L(
                         f"Charger power and the city's level dominate; rankings do not transfer reliably (Spearman {n(min(rho), 2)} to {n(max(rho), 2)} by city).",
@@ -460,13 +467,16 @@ def slides(lang: str) -> list[str]:
     chips = [
         L(
             f"{K['n_tests']} tests · CI on Python 3.11 / 3.12",
-            f"{K['n_tests']} тестов · CI на Python 3.11 / 3.12",
+            f"{ru_n(K['n_tests'], 'тест', 'теста', 'тестов')} · CI на Python 3.11 / 3.12",
         ),
         L(
             "runs from a clean clone: make models → maps → slides",
             "запускается с чистого клона: make models → maps → slides",
         ),
-        L(f"{K['n_sources']} data cards with licences", f"{K['n_sources']} карточек данных с лицензиями"),
+        L(
+            f"{K['n_sources']} data cards with licences",
+            f"{ru_n(K['n_sources'], 'карточка данных', 'карточки данных', 'карточек данных')} с лицензиями",
+        ),
         L("code MIT · data ODbL / OGL / CC BY", "код MIT · данные ODbL / OGL / CC BY"),
     ]
     out.append(
@@ -582,7 +592,7 @@ def slides(lang: str) -> list[str]:
     links = [
         L(
             f'Repository: <a href="{REPO}">github.com/m-erts/chargescape-london</a> — code, {K["n_tests"]} tests, data catalog, methodology, model card',
-            f'Репозиторий: <a href="{REPO}">github.com/m-erts/chargescape-london</a> — код, {K["n_tests"]} тестов, каталог данных, методология, карточка модели',
+            f'Репозиторий: <a href="{REPO}">github.com/m-erts/chargescape-london</a> — код, {ru_n(K["n_tests"], "тест", "теста", "тестов")}, каталог данных, методология, карточка модели',
         ),
         L(
             'Live maps: <a href="../maps/supply_2026.html">supply</a> · <a href="../maps/demand_2026.html">demand</a> · <a href="../maps/rapid_network_load_2026.html">network load</a> · <a href="../maps/siting_hubs.html">hub siting</a>',
@@ -663,6 +673,7 @@ function go(k){i=(k+S.length)%S.length;S.forEach((s,j)=>s.classList.toggle('acti
 function key(k){if(['ArrowRight',' ','PageDown'].includes(k))go(i+1);else if(['ArrowLeft','PageUp'].includes(k))go(i-1);else if(k==='f'||k==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}}
 addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('a,button'))return;key(e.key);if([' ','PageDown','PageUp'].includes(e.key))e.preventDefault();});
 addEventListener('message',e=>{if(e.data&&e.data.cs_key)key(e.data.cs_key);});
+addEventListener('hashchange',()=>{const k=parseInt(location.hash.slice(1));if(!isNaN(k)&&k!==i)go(k);});
 let x0=null;addEventListener('touchstart',e=>{x0=e.touches[0].clientX},{passive:true});addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>60)go(i+(dx<0?1:-1));x0=null},{passive:true});
 go(i);
 """
